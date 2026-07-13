@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نتيجة البحث</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body>
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong>مجمع نهج الشفاء الطبي العام</strong>
+        <span>نظام التحقق من التقارير</span>
+    </div>
+</header>
+
+<div class="container medium" id="resultsContainer">
+<h2>نتائج البحث</h2>
+<p>... جاري البحث</p>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script>
+async function run(){
+    const params = new URLSearchParams(window.location.search);
+    const passport = (params.get('passport') || '').trim();
+    const report_date = (params.get('report_date') || '').trim();
+    const phone = (params.get('phone') || '').trim();
+
+    const data = await sheetsGetData();
+
+    // رقم الباسبور/الإقامة هو الأساس الوحيد المطلوب للبحث.
+    // التاريخ والتليفون بيستخدموا بس لو المستخدم دخّلهم، لتضييق النتائج.
+    let results = data.filter(r => String(r.passport).trim() === passport);
+
+    let narrowedByDate = false, narrowedByPhone = false;
+    if (report_date) {
+        const byDate = results.filter(r => String(r.report_date) === report_date);
+        if (byDate.length) { results = byDate; narrowedByDate = true; }
+    }
+    if (phone) {
+        const byPhone = results.filter(r => String(r.phone).trim() === phone);
+        if (byPhone.length) { results = byPhone; narrowedByPhone = true; }
+    }
+
+    // أحدث تقرير أولًا
+    results.sort((a,b) => String(b.report_date).localeCompare(String(a.report_date)));
+
+    // نخزن النتائج مؤقتًا عشان صفحة تصدير الإكسل (بديل $_SESSION['exportResults'])
+    sessionStorage.setItem('nsh_export_results', JSON.stringify(results));
+
+    const container = document.getElementById('resultsContainer');
+    if (results.length > 0) {
+        let html = '<h2>نتائج البحث</h2>';
+        if (results.length > 1) {
+            html += `<p style="color:var(--text-muted);font-size:14px;text-align:center;">تم العثور على ${results.length} تقرير مطابق لرقم الباسبور/الإقامة.</p>`;
+        }
+        results.forEach(report => {
+            const statusClass = report.report_status === 'valid' ? 'valid-stamp' : 'not-valid-stamp';
+            const statusText = report.report_status === 'valid' ? 'Report Valid' : 'Report Invalid';
+            html += `
+            <div class="report-card">
+                <p><span class="label">رقم الباسبور:</span> ${escapeHtml(report.passport)}</p>
+                <p><span class="label">الاسم عربي:</span> ${escapeHtml(report.name_ar)}</p>
+                <p><span class="label">English Name:</span> ${escapeHtml(report.name_en)}</p>
+                <p><span class="label">رقم التليفون:</span> ${escapeHtml(report.phone)}</p>
+                <p><span class="label">تاريخ التقرير:</span> ${escapeHtml(report.report_date)}</p>
+                <p><span class="stamp-square ${statusClass}">${statusText}</span></p>
+            </div>`;
+        });
+        html += `
+        <div class="button-group">
+            <button class="search-again" onclick="window.location.href='view.html'">بحث مرة أخرى</button>
+            <button class="print-btn" onclick="window.print()">طباعة</button>
+            <button class="export-btn" onclick="window.location.href='export_excel.html'">تصدير Excel</button>
+        </div>`;
+        container.innerHTML = html;
+    } else {
+        const anyForPassport = data.some(r => String(r.passport).trim() === passport);
+        let msg;
+        if (!anyForPassport) {
+            msg = 'لا يوجد أي تقرير مسجّل بهذا الرقم. تأكد من رقم الباسبور/الإقامة وحاول مرة أخرى.';
+        } else if (report_date || phone) {
+            msg = 'يوجد تقرير بهذا الرقم، لكن لا يوجد ما يطابق التاريخ و/أو رقم التليفون اللي دخلتهم. جرّب البحث برقم الباسبور فقط.';
+        } else {
+            msg = 'لا توجد نتائج مطابقة للبحث.';
+        }
+        container.innerHTML = `
+        <h2>نتائج البحث</h2>
+        <p class="no-result">${msg}</p>
+        <button class="search-again" onclick="window.location.href='view.html'">بحث مرة أخرى</button>`;
+    }
+}
+run();
+</script>
+</body>
+</html>

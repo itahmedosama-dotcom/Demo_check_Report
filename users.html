@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة المستخدمين</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body>
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong>مجمع نهج الشفاء الطبي العام</strong>
+        <span>إدارة المستخدمين</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+        <a href="dashboard.html" class="back-btn">⬅️ Dashboard</a>
+        <a href="#" class="logout-btn" onclick="logout(); return false;">⎋ تسجيل الخروج</a>
+    </div>
+</header>
+
+<div class="container">
+<h2>إدارة المستخدمين</h2>
+<p id="msg" class="success" style="display:none;"></p>
+
+<h3>إضافة مستخدم جديد</h3>
+<form id="addUserForm">
+<input type="text" id="new_username" placeholder="اسم المستخدم" required>
+<input type="text" id="new_full_name" placeholder="الاسم الكامل" required>
+<input type="text" id="new_password" placeholder="كلمة المرور" required>
+<select id="new_role" required>
+    <option value="user" selected>User</option>
+    <option value="admin">Admin</option>
+</select>
+<br>
+<button type="submit" class="add-btn">إضافة مستخدم</button>
+</form>
+
+<h3>قائمة المستخدمين</h3>
+<div class="table-wrap">
+<table id="usersTable">
+<tr>
+<th>اسم المستخدم</th>
+<th>الاسم الكامل</th>
+<th>الصلاحية</th>
+<th>الحالة</th>
+<th>مدة عدم النشاط</th>
+<th>مدة التحذير</th>
+<th>تعديل</th>
+<th>إيقاف/تشغيل</th>
+<th>حذف</th>
+<th>حفظ</th>
+<th>كلمة السر</th>
+</tr>
+</table>
+</div>
+</div>
+
+<div id="deleteModal" class="modal">
+<div class="modal-content">
+<p>هل أنت متأكد من حذف المستخدم؟</p>
+<button id="confirmDeleteBtn">نعم</button>
+<button onclick="closeModal()">إلغاء</button>
+</div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script>
+const session = requireAdmin();
+let usersData = [];
+let deleteUsername = '';
+
+function showMsg(text){
+    const el = document.getElementById('msg');
+    el.textContent = text;
+    el.style.display = text ? 'block' : 'none';
+}
+
+function renderUsers(){
+    const table = document.getElementById('usersTable');
+    let html = `<tr>
+        <th>اسم المستخدم</th><th>الاسم الكامل</th><th>الصلاحية</th><th>الحالة</th>
+        <th>مدة عدم النشاط</th><th>مدة التحذير</th><th>تعديل</th>
+        <th>إيقاف/تشغيل</th><th>حذف</th><th>حفظ</th><th>كلمة السر</th></tr>`;
+
+    usersData.forEach((u, index) => {
+        const statusBtnClass = u.status === 'inactive' ? 'status-btn inactive' : 'status-btn';
+        const statusText = u.status === 'active' ? 'إيقاف' : 'تشغيل';
+        html += `<tr data-index="${index}">
+            <td>${escapeHtml(u.username)}</td>
+            <td><input type="text" class="f_full_name" value="${escapeHtml(u.full_name)}" readonly></td>
+            <td>
+                <select class="f_role" disabled>
+                    <option value="user" ${u.role === 'user' ? 'selected' : ''}>User</option>
+                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                </select>
+            </td>
+            <td><a href="#" class="${statusBtnClass}" onclick="toggleStatus('${escapeHtml(u.username)}'); return false;">${statusText}</a></td>
+            <td><input type="number" class="f_idle_time" value="${u.idle_time ?? 30}" min="1" readonly style="width:60px;"></td>
+            <td><input type="number" class="f_warning_time" value="${u.warning_time ?? 5}" min="1" readonly style="width:60px;"></td>
+            <td><button type="button" class="edit-btn" onclick="enableEdit(this)">✏️ تعديل</button></td>
+            <td></td>
+            <td><button type="button" class="delete-btn" onclick="confirmDelete('${escapeHtml(u.username)}')">🗑️ حذف</button></td>
+            <td>
+                <input type="password" class="f_password" placeholder="كلمة السر" readonly>
+                <button type="button" class="save-btn" onclick="saveUser(${index})">💾 حفظ</button>
+            </td>
+        </tr>`;
+    });
+    table.innerHTML = html;
+}
+
+async function loadUsers(){
+    usersData = await sheetsGetUsers();
+    renderUsers();
+}
+
+document.getElementById('addUserForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const username = document.getElementById('new_username').value.trim();
+    const full_name = document.getElementById('new_full_name').value.trim();
+    const password = document.getElementById('new_password').value;
+    const role = document.getElementById('new_role').value;
+
+    if (usersData.some(u => u.username === username)) {
+        showMsg('⚠️ اسم المستخدم موجود بالفعل!');
+        return;
+    }
+
+    usersData.push({
+        username, full_name, password, role,
+        status: 'active', idle_time: 30, warning_time: 5
+    });
+    await sheetsSaveUsers(usersData);
+    showMsg('✅ تم إضافة المستخدم بنجاح!');
+    e.target.reset();
+    await loadUsers();
+});
+
+async function saveUser(index){
+    const row = document.querySelector(`tr[data-index="${index}"]`);
+    usersData[index].full_name = row.querySelector('.f_full_name').value;
+    usersData[index].role = row.querySelector('.f_role').value;
+    const pw = row.querySelector('.f_password').value;
+    if (pw) usersData[index].password = pw;
+    usersData[index].idle_time = Math.max(1, parseInt(row.querySelector('.f_idle_time').value) || 30);
+    usersData[index].warning_time = Math.max(1, parseInt(row.querySelector('.f_warning_time').value) || 5);
+    await sheetsSaveUsers(usersData);
+    showMsg('✅ تم حفظ بيانات المستخدم بنجاح!');
+    await loadUsers();
+}
+
+async function toggleStatus(username){
+    const u = usersData.find(x => x.username === username);
+    if (u) {
+        u.status = u.status === 'active' ? 'inactive' : 'active';
+        await sheetsSaveUsers(usersData);
+        showMsg('✅ تم تحديث حالة المستخدم!');
+        await loadUsers();
+    }
+}
+
+function enableEdit(btn){
+    const row = btn.closest('tr');
+    row.querySelectorAll('input, select').forEach(el => {
+        el.removeAttribute('readonly');
+        el.removeAttribute('disabled');
+    });
+}
+
+function confirmDelete(username){
+    deleteUsername = username;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeModal(){
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function(){
+    usersData = usersData.filter(u => u.username !== deleteUsername);
+    await sheetsSaveUsers(usersData);
+    closeModal();
+    showMsg('✅ تم حذف المستخدم بنجاح!');
+    await loadUsers();
+});
+
+loadUsers();
+</script>
+
+</body>
+</html>

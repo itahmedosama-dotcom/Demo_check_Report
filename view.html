@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بحث التقرير</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body>
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong>مجمع نهج الشفاء الطبي العام</strong>
+        <span>نظام التحقق من التقارير</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+        <a href="index.html" class="back-btn">⬅️ تسجيل الدخول</a>
+    </div>
+</header>
+
+<div class="container medium">
+<h2>بحث عن التقرير</h2>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;">أدخل رقم الباسبور أو الإقامة للتحقق من حالة تقريرك. التاريخ والتليفون اختياريان ويُستخدمان لتضييق نتائج البحث فقط.</p>
+<form id="searchForm">
+<label>رقم الباسبور أو الإقامة:</label>
+<input type="text" id="passport" required>
+
+<label>تاريخ التقرير <span class="field-hint" style="display:inline;">(اختياري)</span></label>
+<input type="date" id="report_date">
+<span class="field-hint">اتركه فارغًا لو مش متأكد من التاريخ بالظبط</span>
+
+<label>رقم التليفون <span class="field-hint" style="display:inline;">(اختياري)</span></label>
+<input type="text" id="phone">
+
+<br>
+<button type="submit">بحث</button>
+</form>
+</div>
+
+<script>
+document.getElementById('searchForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const passport = document.getElementById('passport').value.trim();
+    const report_date = document.getElementById('report_date').value;
+    const phone = document.getElementById('phone').value.trim();
+    const params = new URLSearchParams({ passport, report_date, phone });
+    window.location.href = 'report_result.html?' + params.toString();
+});
+</script>
+
+</body>
+</html>

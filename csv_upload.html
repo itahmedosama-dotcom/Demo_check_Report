@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رفع ملف CSV</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body>
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong>مجمع نهج الشفاء الطبي العام</strong>
+        <span>رفع بيانات التقارير</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+        <a href="#" class="logout-btn" onclick="logout(); return false;">⎋ تسجيل الخروج</a>
+    </div>
+</header>
+
+<div class="container">
+<h2>رفع ملف CSV وإضافة البيانات</h2>
+
+<p id="successMsg" class="success" style="display:none;"></p>
+
+<a href="csv_example.csv" class="download-btn" download>📥 تحميل نموذج CSV</a>
+
+<form id="uploadForm" style="margin-top:15px;">
+    <input type="file" id="csv_file" accept=".csv" required>
+    <button type="submit" class="confirm-btn">رفع الملف</button>
+</form>
+
+<div id="previewSection" style="display:none;">
+<h3>معاينة البيانات قبل الإضافة</h3>
+<div class="table-wrap">
+<table id="previewTable">
+<tr>
+<th>رقم الباسبور</th><th>الاسم بالعربي</th><th>English Name</th>
+<th>رقم التليفون</th><th>تاريخ التقرير</th><th>حالة التقرير</th><th>حذف</th>
+</tr>
+</table>
+</div>
+
+<button id="confirmUploadBtn" class="confirm-btn">✅ تأكيد إضافة البيانات</button>
+</div>
+
+<br><br>
+<a href="dashboard.html" class="back-btn">⬅ العودة للداش بورد</a>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script>
+requireLogin();
+
+let csvData = JSON.parse(sessionStorage.getItem('nsh_csv_data') || '[]');
+
+function parseCSVLine(line){
+    // معالجة بسيطة لأسطر CSV (تدعم الفواصل العادية والاقتباسات البسيطة)
+    const result = [];
+    let cur = '', inQuotes = false;
+    for (let i=0; i<line.length; i++){
+        const c = line[i];
+        if (c === '"') { inQuotes = !inQuotes; continue; }
+        if (c === ',' && !inQuotes) { result.push(cur); cur=''; continue; }
+        cur += c;
+    }
+    result.push(cur);
+    return result;
+}
+
+function renderPreview(){
+    const section = document.getElementById('previewSection');
+    if (!csvData.length) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    const table = document.getElementById('previewTable');
+    let html = `<tr><th>رقم الباسبور</th><th>الاسم بالعربي</th><th>English Name</th>
+        <th>رقم التليفون</th><th>تاريخ التقرير</th><th>حالة التقرير</th><th>حذف</th></tr>`;
+    csvData.forEach((row, index) => {
+        html += `<tr>
+            <td>${escapeHtml(row.passport)}</td>
+            <td>${escapeHtml(row.name_ar)}</td>
+            <td>${escapeHtml(row.name_en)}</td>
+            <td>${escapeHtml(row.phone)}</td>
+            <td>${escapeHtml(row.report_date)}</td>
+            <td>${escapeHtml(row.report_status)}</td>
+            <td><a href="#" class="delete-btn" style="text-decoration:none;padding:4px 8px;" onclick="deleteCsvRow(${index}); return false;">حذف</a></td>
+        </tr>`;
+    });
+    table.innerHTML = html;
+}
+
+function deleteCsvRow(index){
+    if (!confirm('هل أنت متأكد من حذف هذا السطر؟')) return;
+    csvData.splice(index, 1);
+    sessionStorage.setItem('nsh_csv_data', JSON.stringify(csvData));
+    renderPreview();
+}
+
+document.getElementById('uploadForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const file = document.getElementById('csv_file').files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt){
+        const lines = evt.target.result.split(/\r?\n/).filter(l => l.trim() !== '');
+        csvData = [];
+        lines.forEach((line, i) => {
+            if (i === 0) return; // تجاهل صف العناوين
+            const row = parseCSVLine(line);
+            csvData.push({
+                passport: row[0] || '',
+                name_ar: row[1] || '',
+                name_en: row[2] || '',
+                phone: row[3] || '',
+                report_date: row[4] || '',
+                report_status: row[5] || 'valid'
+            });
+        });
+        sessionStorage.setItem('nsh_csv_data', JSON.stringify(csvData));
+        renderPreview();
+    };
+    reader.readAsText(file, 'UTF-8');
+});
+
+document.getElementById('confirmUploadBtn').addEventListener('click', async function(){
+    const data = await sheetsGetData();
+    const merged = data.concat(csvData);
+    await sheetsSaveData(merged);
+    csvData = [];
+    sessionStorage.removeItem('nsh_csv_data');
+    renderPreview();
+    const el = document.getElementById('successMsg');
+    el.textContent = '✅ تم إضافة جميع البيانات بنجاح!';
+    el.style.display = 'block';
+});
+
+renderPreview();
+</script>
+
+</body>
+</html>
