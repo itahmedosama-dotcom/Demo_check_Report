@@ -6,8 +6,17 @@ async function sheetsGet(sheetName) {
     try {
         const url = `${API_URL}?sheet=${encodeURIComponent(sheetName)}&key=${encodeURIComponent(API_KEY)}`;
         const res = await fetch(url);
-        if (!res.ok) return [];
+        if (!res.ok) {
+            console.error('sheetsGet: HTTP', res.status);
+            return [];
+        }
         const data = await res.json();
+        // Apps Script بيرجع 200 حتى لو فيه خطأ منطقي (زي مفتاح غلط)،
+        // فلازم نتأكد إن الرد مش object فيه error بدل array البيانات
+        if (data && !Array.isArray(data) && data.error) {
+            console.error('sheetsGet: server error ->', data.error);
+            return [];
+        }
         return Array.isArray(data) ? data : [];
     } catch (e) {
         console.error('sheetsGet error:', e);
@@ -28,7 +37,17 @@ async function sheetsSave(sheetName, data) {
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: payload
         });
-        return res.ok;
+        if (!res.ok) {
+            console.error('sheetsSave: HTTP', res.status);
+            return false;
+        }
+        // برضو هنا: الرد بيرجع 200 حتى لو فيه خطأ منطقي، فلازم نتحقق من الجسم نفسه
+        const body = await res.json().catch(() => null);
+        if (!body || body.error) {
+            console.error('sheetsSave: server error ->', body && body.error);
+            return false;
+        }
+        return body.status === 'ok';
     } catch (e) {
         console.error('sheetsSave error:', e);
         return false;
@@ -42,6 +61,16 @@ async function sheetsSaveData(data) { return sheetsSave('reports', data); }
 // ------- المستخدمين -------
 async function sheetsGetUsers() { return sheetsGet('users'); }
 async function sheetsSaveUsers(users) { return sheetsSave('users', users); }
+
+// ------- الإعدادات (رقم واتساب وغيره) -------
+// الشيت بيتخزن كصف واحد بس، فبنتعامل معاه كـ object مش array
+async function sheetsGetSettings() {
+    const rows = await sheetsGet('settings');
+    return rows[0] || {};
+}
+async function sheetsSaveSettings(settingsObj) {
+    return sheetsSave('settings', [settingsObj]);
+}
 
 // ============================================================
 // إدارة "الجلسة" (بديل session_start في PHP) — تُخزَّن في sessionStorage

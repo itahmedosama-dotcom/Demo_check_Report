@@ -53,6 +53,7 @@
 
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/whatsapp.js"></script>
 <script>
 requireLogin();
 
@@ -133,12 +134,18 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
 document.getElementById('confirmUploadBtn').addEventListener('click', async function(){
     const data = await sheetsGetData();
     const merged = data.concat(csvData);
-    await sheetsSaveData(merged);
-    csvData = [];
-    sessionStorage.removeItem('nsh_csv_data');
-    renderPreview();
+    const ok = await sheetsSaveData(merged);
     const el = document.getElementById('successMsg');
-    el.textContent = '✅ تم إضافة جميع البيانات بنجاح!';
+    if (ok) {
+        csvData = [];
+        sessionStorage.removeItem('nsh_csv_data');
+        renderPreview();
+        el.textContent = '✅ تم إضافة جميع البيانات بنجاح!';
+        el.className = 'success';
+    } else {
+        el.textContent = '⚠️ حصل خطأ أثناء الحفظ في الشيت، لم تتم إضافة البيانات. تأكد من رابط ومفتاح Google Apps Script وحاول تاني.';
+        el.className = 'error';
+    }
     el.style.display = 'block';
 });
 

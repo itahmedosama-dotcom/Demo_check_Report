@@ -57,6 +57,19 @@
 </tr>
 </table>
 </div>
+
+<div class="settings-section">
+<h3>إعدادات زر واتساب</h3>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;">حط رقم واتساب التواصل هنا عشان يظهر زرار "تحدث معنا" في كل صفحات الموقع. سيبه فاضي لو عايز تخفي الزرار مؤقتًا.</p>
+<p id="waMsg" class="success" style="display:none;"></p>
+<form id="waSettingsForm">
+<label>رقم واتساب (بالصيغة الدولية بدون + أو مسافات، مثال: 966501234567)</label>
+<input type="text" id="wa_number" placeholder="966501234567">
+<label>نص الرسالة الافتراضي عند الضغط على الزرار</label>
+<input type="text" id="wa_message" placeholder="مرحبًا، أرغب في الاستفسار">
+<button type="submit">💾 حفظ إعدادات واتساب</button>
+</form>
+</div>
 </div>
 
 <div id="deleteModal" class="modal">
@@ -69,10 +82,36 @@
 
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/whatsapp.js"></script>
 <script>
 const session = requireAdmin();
 let usersData = [];
 let deleteUsername = '';
+
+async function loadWaSettings(){
+    const settings = await sheetsGetSettings();
+    document.getElementById('wa_number').value = settings.whatsapp_number || '';
+    document.getElementById('wa_message').value = settings.whatsapp_message || '';
+}
+
+document.getElementById('waSettingsForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const waMsgEl = document.getElementById('waMsg');
+    const number = document.getElementById('wa_number').value.trim();
+    const message = document.getElementById('wa_message').value.trim();
+
+    const ok = await sheetsSaveSettings({ whatsapp_number: number, whatsapp_message: message });
+    if (ok) {
+        waMsgEl.textContent = '✅ تم حفظ إعدادات واتساب بنجاح!';
+        waMsgEl.style.display = 'block';
+    } else {
+        waMsgEl.textContent = '⚠️ حصل خطأ أثناء الحفظ، تأكد من رابط ومفتاح Google Apps Script في js/config.js وحاول تاني.';
+        waMsgEl.style.display = 'block';
+    }
+    setTimeout(() => { waMsgEl.style.display = 'none'; }, 4000);
+});
+
+loadWaSettings();
 
 function showMsg(text){
     const el = document.getElementById('msg');
@@ -135,9 +174,9 @@ document.getElementById('addUserForm').addEventListener('submit', async function
         username, full_name, password, role,
         status: 'active', idle_time: 30, warning_time: 5
     });
-    await sheetsSaveUsers(usersData);
-    showMsg('✅ تم إضافة المستخدم بنجاح!');
-    e.target.reset();
+    const ok = await sheetsSaveUsers(usersData);
+    showMsg(ok ? '✅ تم إضافة المستخدم بنجاح!' : '⚠️ حصل خطأ أثناء الحفظ في الشيت، جرّب تاني.');
+    if (ok) e.target.reset();
     await loadUsers();
 });
 
@@ -149,8 +188,8 @@ async function saveUser(index){
     if (pw) usersData[index].password = pw;
     usersData[index].idle_time = Math.max(1, parseInt(row.querySelector('.f_idle_time').value) || 30);
     usersData[index].warning_time = Math.max(1, parseInt(row.querySelector('.f_warning_time').value) || 5);
-    await sheetsSaveUsers(usersData);
-    showMsg('✅ تم حفظ بيانات المستخدم بنجاح!');
+    const ok = await sheetsSaveUsers(usersData);
+    showMsg(ok ? '✅ تم حفظ بيانات المستخدم بنجاح!' : '⚠️ حصل خطأ أثناء الحفظ في الشيت، جرّب تاني.');
     await loadUsers();
 }
 
@@ -158,8 +197,8 @@ async function toggleStatus(username){
     const u = usersData.find(x => x.username === username);
     if (u) {
         u.status = u.status === 'active' ? 'inactive' : 'active';
-        await sheetsSaveUsers(usersData);
-        showMsg('✅ تم تحديث حالة المستخدم!');
+        const ok = await sheetsSaveUsers(usersData);
+        showMsg(ok ? '✅ تم تحديث حالة المستخدم!' : '⚠️ حصل خطأ أثناء الحفظ في الشيت، جرّب تاني.');
         await loadUsers();
     }
 }
@@ -183,9 +222,9 @@ function closeModal(){
 
 document.getElementById('confirmDeleteBtn').addEventListener('click', async function(){
     usersData = usersData.filter(u => u.username !== deleteUsername);
-    await sheetsSaveUsers(usersData);
+    const ok = await sheetsSaveUsers(usersData);
     closeModal();
-    showMsg('✅ تم حذف المستخدم بنجاح!');
+    showMsg(ok ? '✅ تم حذف المستخدم بنجاح!' : '⚠️ حصل خطأ أثناء الحفظ في الشيت، جرّب تاني.');
     await loadUsers();
 });
 

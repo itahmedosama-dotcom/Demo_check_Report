@@ -94,6 +94,7 @@
 
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/whatsapp.js"></script>
 <script>
 const session = requireLogin();
 let reportsData = [];
@@ -155,8 +156,13 @@ async function loadReports(){
 async function deleteReport(index){
     if (session.role !== 'admin') return;
     if (!confirm('هل أنت متأكد من حذف هذا التقرير؟')) return;
+    const backup = reportsData.slice();
     reportsData.splice(index, 1);
-    await sheetsSaveData(reportsData);
+    const ok = await sheetsSaveData(reportsData);
+    if (!ok) {
+        showError('⚠️ حصل خطأ أثناء الحفظ في الشيت، لم يتم حذف التقرير. جرّب تاني.');
+        reportsData = backup;
+    }
     await loadReports();
 }
 
@@ -191,7 +197,13 @@ document.getElementById('reportForm').addEventListener('submit', async function(
     };
 
     reportsData.push(newReport);
-    await sheetsSaveData(reportsData);
+    const ok = await sheetsSaveData(reportsData);
+    if (!ok) {
+        reportsData.pop();
+        showError('⚠️ حصل خطأ أثناء الحفظ في الشيت، لم تتم إضافة التقرير. تأكد من رابط ومفتاح Google Apps Script في js/config.js وحاول تاني.');
+        renderTable();
+        return;
+    }
     e.target.reset();
     document.getElementById('report_date').value = new Date().toISOString().slice(0,10);
     await loadReports();

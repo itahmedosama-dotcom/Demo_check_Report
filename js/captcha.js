@@ -39,15 +39,20 @@ function initCaptcha(prefix) {
 
     refreshBtn.addEventListener('click', regenerate);
 
-    copyBtn.addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(currentCode);
-            const original = copyBtn.textContent;
-            copyBtn.textContent = '✅';
-            setTimeout(() => { copyBtn.textContent = original; }, 1200);
-        } catch (e) {
-            // لو الكليپبورد مش متاح، نحط الكود مباشرة في الحقل
-            inputEl.value = currentCode;
+    // زرار النسخ/اللصق: أهم حاجة إنه يحط الكود في الحقل على طول (ده اللي المستخدم فعليًا محتاجه)،
+    // وبعدين نحاول كمان ننسخه للكليپبورد كخطوة إضافية (ممكن تفشل في متصفحات/سياقات معينة، وده عادي).
+    copyBtn.addEventListener('click', () => {
+        inputEl.value = currentCode;
+        inputEl.focus();
+
+        const original = copyBtn.textContent;
+        copyBtn.textContent = '✅';
+        setTimeout(() => { copyBtn.textContent = original; }, 1200);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(currentCode).catch(() => {
+                // تجاهل: الكود اتحط في الحقل فعلاً فوق، وده الأهم
+            });
         }
     });
 
