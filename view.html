@@ -24,6 +24,9 @@
 <div class="container medium">
 <h2>بحث عن التقرير</h2>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;">أدخل رقم الباسبور أو الإقامة للتحقق من حالة تقريرك. التاريخ والتليفون اختياريان ويُستخدمان لتضييق نتائج البحث فقط.</p>
+
+<p id="error" class="error" style="display:none;"></p>
+
 <form id="searchForm">
 <label>رقم الباسبور أو الإقامة:</label>
 <input type="text" id="passport" required>
@@ -35,14 +38,29 @@
 <label>رقم التليفون <span class="field-hint" style="display:inline;">(اختياري)</span></label>
 <input type="text" id="phone">
 
+<div id="searchCaptchaContainer"></div>
+
 <br>
 <button type="submit">بحث</button>
 </form>
 </div>
 
+<script src="js/captcha.js"></script>
 <script>
+document.getElementById('searchCaptchaContainer').innerHTML = captchaWidgetHtml('search', 'ونمنع الإزعاج على السيستم');
+const searchCaptcha = initCaptcha('search');
+
 document.getElementById('searchForm').addEventListener('submit', function(e){
     e.preventDefault();
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+
+    if (!searchCaptcha.verify()) {
+        errorEl.textContent = '⚠️ الكود اللي كتبته غير مطابق، جرّب الكود الجديد.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
     const passport = document.getElementById('passport').value.trim();
     const report_date = document.getElementById('report_date').value;
     const phone = document.getElementById('phone').value.trim();

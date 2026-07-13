@@ -25,6 +25,9 @@
 <form id="loginForm">
 <input type="text" id="username" placeholder="اسم المستخدم" required>
 <input type="password" id="password" placeholder="كلمة المرور" required>
+
+<div id="loginCaptchaContainer"></div>
+
 <br>
 <button type="submit">دخول</button>
 </form>
@@ -34,9 +37,13 @@
 
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/captcha.js"></script>
 <script>
 // لو المستخدم مسجل دخول بالفعل، يروح على الداشبورد مباشرة
 if (getSession()) window.location.href = 'dashboard.html';
+
+document.getElementById('loginCaptchaContainer').innerHTML = captchaWidgetHtml('login', 'إنك مش SPAM ويخربش الحساب');
+const loginCaptcha = initCaptcha('login');
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
     e.preventDefault();
@@ -44,6 +51,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const password = document.getElementById('password').value;
     const errorEl = document.getElementById('error');
     errorEl.style.display = 'none';
+
+    if (!loginCaptcha.verify()) {
+        errorEl.textContent = '⚠️ الكود اللي كتبته غير مطابق، جرّب الكود الجديد.';
+        errorEl.style.display = 'block';
+        return;
+    }
 
     const submitBtn = e.target.querySelector('button');
     submitBtn.disabled = true;
@@ -60,6 +73,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         errorEl.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.textContent = 'دخول';
+        loginCaptcha.regenerate();
     }
 });
 </script>
