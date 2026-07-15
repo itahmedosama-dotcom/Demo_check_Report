@@ -14,7 +14,12 @@ async function sheetsGet(sheetName) {
     }
     try {
         const url = `${API_URL}?sheet=${encodeURIComponent(sheetName)}&key=${encodeURIComponent(API_KEY)}`;
-        const res = await fetch(url);
+        // مهلة قصوى 15 ثانية: لو الاتصال بطيء جدًا أو النت واقف، بنوقف الانتظار
+        // ونظهر رسالة خطأ واضحة بدل ما تفضل الصفحة معلقة على "جاري البحث" للأبد
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!res.ok) {
             console.error('sheetsGet: HTTP', res.status);
             window.__nshLastFetchFailed = true;

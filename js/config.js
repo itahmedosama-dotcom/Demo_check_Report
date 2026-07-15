@@ -7,7 +7,7 @@
 // لكل المستخدمين، استخدم قسم "🔗 ربط Google Sheet" في صفحة الإعدادات
 // (أدمن بس) وحمّل ملف config.js الجديد بعد التعديل، وارفعه بدل الملف ده.
 // ============================================================
-'https://script.google.com/macros/s/AKfycbwWbwbyoBLWa_3NaOjtSMhT_sDHdh-34SY0oMko9zZmZ50-9DABV2ZXWyJXab0dfXMM/exec';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwWbwbyoBLWa_3NaOjtSMhT_sDHdh-34SY0oMko9zZmZ50-9DABV2ZXWyJXab0dfXMM/exec';
 const DEFAULT_API_KEY = 'Demo2026SecretKeyXyz';
 
 // ------------------------------------------------------------
