@@ -29,7 +29,6 @@
 <div class="container">
 <h2 data-i18n="csv.title">رفع ملف CSV وإضافة البيانات</h2>
 
-<p id="successMsg" class="success" style="display:none;"></p>
 
 <a href="csv_example.csv" class="download-btn" download data-i18n="csv.downloadTemplate">📥 تحميل نموذج CSV</a>
 
@@ -145,18 +144,14 @@ document.getElementById('confirmUploadBtn').addEventListener('click', async func
     const data = await sheetsGetData();
     const merged = data.concat(csvData);
     const ok = await sheetsSaveData(merged);
-    const el = document.getElementById('successMsg');
     if (ok) {
         csvData = [];
         sessionStorage.removeItem('nsh_csv_data');
         renderPreview();
-        el.textContent = t('csv.addSuccess');
-        el.className = 'success';
+        showToast(t('csv.addSuccess'));
     } else {
-        el.textContent = t('csv.addFailed');
-        el.className = 'error';
+        showToast(t('csv.addFailed'), true);
     }
-    el.style.display = 'block';
 });
 
 renderPreview();

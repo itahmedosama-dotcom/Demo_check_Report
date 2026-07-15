@@ -29,7 +29,6 @@
 
 <div class="container">
 <h2 data-i18n="users.title">إدارة المستخدمين</h2>
-<p id="msg" class="success" style="display:none;"></p>
 
 <h3 data-i18n="users.pendingTitle">📥 طلبات تسجيل الموظفين الجدد</h3>
 <div id="pendingSection">
@@ -83,7 +82,6 @@
 <div class="settings-section">
 <h3 data-i18n="users.waSettingsTitle">إعدادات زر واتساب</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.waSettingsDesc">حط رقم واتساب التواصل هنا عشان يظهر زرار "تحدث معنا" في كل صفحات الموقع. سيبه فاضي لو عايز تخفي الزرار مؤقتًا.</p>
-<p id="waMsg" class="success" style="display:none;"></p>
 <form id="waSettingsForm">
 <label data-i18n="users.waNumberLabel">رقم واتساب (بالصيغة الدولية بدون + أو مسافات، مثال: 966501234567)</label>
 <input type="text" id="wa_number" placeholder="966501234567">
@@ -96,7 +94,6 @@
 <div class="settings-section">
 <h3 data-i18n="users.footerSettingsTitle">إعدادات حقوق الملكية (الفوتر)</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.footerSettingsDesc">النص وبيانات التواصل اللي بتظهر في أسفل كل صفحات الموقع. سيب أي حقل فاضي لو عايز ترجع للقيمة الافتراضية بتاعته.</p>
-<p id="copyrightMsg" class="success" style="display:none;"></p>
 <form id="copyrightSettingsForm">
 <label data-i18n="users.copyrightTextLabel">نص حقوق الملكية</label>
 <input type="text" id="copyright_text" placeholder="© جميع حقوق الملكية الفكرية لهذا التطبيق محفوظة لدى الشركة المطوّرة — integriox CO">
@@ -114,7 +111,6 @@
 <h3 data-i18n="users.brandingTitle">🎨 هوية الشركة (الشعار / الاسم / الألوان)</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.brandingDesc">استخدم القسم ده عشان تخصّص شكل الموقع باسم وشعار وألوان أي شركة تانية بتستخدم نفس المشروع، من غير أي تعديل في الكود. سيب اسم الشركة فاضي أو رجّع الألوان الافتراضية لو عايز ترجع للهوية الأصلية.</p>
 <p id="brandingRestrictedNote" class="error" style="display:none;" data-i18n="users.brandingRestrictedNote">هذا القسم متاح فقط لحساب الأدمن.</p>
-<p id="brandingMsg" class="success" style="display:none;"></p>
 <form id="brandingForm">
 <label data-i18n="users.companyNameLabel">اسم الشركة (هيظهر في هيدر كل الصفحات بدل الاسم الحالي)</label>
 <input type="text" id="company_name" data-i18n-ph="users.companyNamePh" placeholder="integriox">
@@ -151,7 +147,6 @@
 <div class="settings-section" id="apiConfigSection">
 <h3 data-i18n="users.apiSettingsTitle">🔗 ربط Google Sheet / Apps Script</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.apiSettingsDesc">غيّر رابط ومفتاح Google Apps Script هنا لو عايز تربط نفس المشروع بشيت جديد (شركة تانية مثلاً)، من غير ما تفتح أي كود يدويًا.</p>
-<p id="apiConfigMsg" class="success" style="display:none;"></p>
 <form id="apiConfigForm">
 <label data-i18n="users.apiUrlLabel">رابط Apps Script (Web App URL)</label>
 <input type="url" id="api_url_input" placeholder="https://script.google.com/macros/s/xxxxx/exec" required>
@@ -169,7 +164,6 @@
 <div class="settings-section" id="externalProvidersSection">
 <h3 data-i18n="users.providersTitle">🔌 ربط مزودي خدمة خارجيين (SMS / WhatsApp API)</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.providersDesc">إعدادات ربط مزود إرسال SMS و/أو WhatsApp Business API. بعد تعبئة البيانات وتفعيل المزود، هيظهر زرار إرسال فعلي وتلقائي (📤 / 📩) بجانب كل تقرير في لوحة التحكم، بيبعت الرسالة مباشرة للعميل من غير أي خطوة يدوية. الإرسال بيحصل من Apps Script نفسه (مش من المتصفح) عشان توكن/مفتاح المزود يفضل مخبّى.</p>
-<p id="providersMsg" class="success" style="display:none;"></p>
 <form id="providersForm">
 
 <h4 style="margin-bottom:6px;" data-i18n="users.smsSectionTitle">📩 مزود SMS</h4>
@@ -363,27 +357,20 @@ async function loadWaSettings(){
 
 document.getElementById('waSettingsForm').addEventListener('submit', async function(e){
     e.preventDefault();
-    const waMsgEl = document.getElementById('waMsg');
     const number = document.getElementById('wa_number').value.trim();
     const message = document.getElementById('wa_message').value.trim();
 
     settingsData = { ...settingsData, whatsapp_number: number, whatsapp_message: message };
     const ok = await sheetsSaveSettings(settingsData);
     if (ok) {
-        waMsgEl.textContent = t('users.msgWaSaved');
-        waMsgEl.className = 'success';
-        waMsgEl.style.display = 'block';
+        showToast(t('users.msgWaSaved'));
     } else {
-        waMsgEl.textContent = t('users.msgSaveErrorGeneric');
-        waMsgEl.className = 'error';
-        waMsgEl.style.display = 'block';
+        showToast(t('users.msgSaveErrorGeneric'), true);
     }
-    setTimeout(() => { waMsgEl.style.display = 'none'; }, 7000);
 });
 
 document.getElementById('copyrightSettingsForm').addEventListener('submit', async function(e){
     e.preventDefault();
-    const copyrightMsgEl = document.getElementById('copyrightMsg');
     const copyrightText = document.getElementById('copyright_text').value.trim();
     const phone1 = document.getElementById('footer_phone1').value.trim();
     const phone2 = document.getElementById('footer_phone2').value.trim();
@@ -398,15 +385,10 @@ document.getElementById('copyrightSettingsForm').addEventListener('submit', asyn
     };
     const ok = await sheetsSaveSettings(settingsData);
     if (ok) {
-        copyrightMsgEl.textContent = t('users.msgFooterSaved');
-        copyrightMsgEl.className = 'success';
-        copyrightMsgEl.style.display = 'block';
+        showToast(t('users.msgFooterSaved'));
     } else {
-        copyrightMsgEl.textContent = t('users.msgSaveErrorGeneric');
-        copyrightMsgEl.className = 'error';
-        copyrightMsgEl.style.display = 'block';
+        showToast(t('users.msgSaveErrorGeneric'), true);
     }
-    setTimeout(() => { copyrightMsgEl.style.display = 'none'; }, 7000);
 });
 
 const providersFormEl = document.getElementById('providersForm');
@@ -414,7 +396,6 @@ if (providersFormEl) {
     providersFormEl.addEventListener('submit', async function (e) {
         e.preventDefault();
         if (session.role !== 'admin') return;
-        const providersMsgEl = document.getElementById('providersMsg');
 
         settingsData = {
             ...settingsData,
@@ -431,15 +412,10 @@ if (providersFormEl) {
         };
         const ok = await sheetsSaveSettings(settingsData);
         if (ok) {
-            providersMsgEl.textContent = t('users.msgProvidersSaved');
-            providersMsgEl.className = 'success';
-            providersMsgEl.style.display = 'block';
+            showToast(t('users.msgProvidersSaved'));
         } else {
-            providersMsgEl.textContent = t('users.msgSaveErrorGeneric');
-            providersMsgEl.className = 'error';
-            providersMsgEl.style.display = 'block';
+            showToast(t('users.msgSaveErrorGeneric'), true);
         }
-        setTimeout(() => { providersMsgEl.style.display = 'none'; }, 7000);
     });
 }
 
@@ -484,11 +460,7 @@ document.getElementById('logo_file').addEventListener('change', function () {
 });
 
 function showBrandingMsg(text, isError) {
-    const el = document.getElementById('brandingMsg');
-    el.textContent = text;
-    el.className = isError ? 'error' : 'success';
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 7000);
+    showToast(text, !!isError);
 }
 
 document.getElementById('brandingForm').addEventListener('submit', async function (e) {
@@ -580,11 +552,7 @@ if (session.role === 'admin') {
 }
 
 function showApiConfigMsg(text, isError) {
-    const el = document.getElementById('apiConfigMsg');
-    el.textContent = text;
-    el.className = isError ? 'error' : 'success';
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 8000);
+    showToast(text, !!isError);
 }
 
 document.getElementById('apiConfigForm').addEventListener('submit', function (e) {
@@ -682,9 +650,7 @@ if (backupBtn) {
 }
 
 function showMsg(text){
-    const el = document.getElementById('msg');
-    el.textContent = text;
-    el.style.display = text ? 'block' : 'none';
+    showToast(text);
 }
 
 function renderUsers(){

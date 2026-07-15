@@ -36,7 +36,6 @@
     <p style="color:var(--text-muted); font-size:14px;" data-i18n="sheetSetup.note">
         النسخة دي لسه مش مربوطة بأي شيت. الصق رابط تطبيق Apps Script (/exec) والمفتاح السري اللي عملتهم لشيتك، ثم احفظ.
     </p>
-    <p id="sheetSetupMsg" class="success" style="display:none;"></p>
     <form id="sheetSetupForm">
         <label data-i18n="users.apiUrlLabel">رابط Apps Script (Web App URL)</label>
         <input type="url" id="setup_api_url_input" placeholder="https://script.google.com/macros/s/xxxxx/exec" required>
@@ -149,10 +148,7 @@ const setupCaptcha = initCaptcha('setup');
 // فورم أول ربط لجدول Google Sheet (يظهر لو config.js لسه فاضي)
 // ============================================================
 function showSheetSetupMsg(text, isError) {
-    const el = document.getElementById('sheetSetupMsg');
-    el.textContent = text;
-    el.className = isError ? 'error' : 'success';
-    el.style.display = 'block';
+    showToast(text, !!isError);
 }
 
 document.getElementById('sheetSetupForm').addEventListener('submit', function (e) {
