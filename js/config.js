@@ -7,8 +7,8 @@
 // لكل المستخدمين، استخدم قسم "🔗 ربط Google Sheet" في صفحة الإعدادات
 // (أدمن بس) وحمّل ملف config.js الجديد بعد التعديل، وارفعه بدل الملف ده.
 // ============================================================
-const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwWbwbyoBLWa_3NaOjtSMhT_sDHdh-34SY0oMko9zZmZ50-9DABV2ZXWyJXab0dfXMM/exec';
-const DEFAULT_API_KEY = 'Demo2026SecretKeyXyz';
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbz-4JqJpcVIrSvCGP65Xd3odrz6ZWi5yui9aKeZN5b41vhzWJN4QP_NFTpUJLUQOUTV_Q/exec';
+const DEFAULT_API_KEY = 'Nsh2026SecretKeyXyz';
 
 // ------------------------------------------------------------
 // "معاينة محلية" فقط: لو الأدمن استخدم زرار "تطبيق ومعاينة على هذا الجهاز"

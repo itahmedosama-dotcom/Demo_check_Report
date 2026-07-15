@@ -24,6 +24,9 @@
 
 <div class="container narrow">
 
+<p id="initLoadingMsg" data-i18n="setup.checking" style="color:var(--text-muted); text-align:center;">... جاري التحقق من إعدادات النظام</p>
+
+<div id="normalAuthWrap" style="display:none;">
 <div class="auth-tabs">
     <button type="button" class="auth-tab-btn active" id="tabLoginBtn" onclick="switchAuthTab('login')" data-i18n="login.tab">تسجيل الدخول</button>
     <button type="button" class="auth-tab-btn" id="tabRegisterBtn" onclick="switchAuthTab('register')" data-i18n="register.tab">تسجيل موظف جديد</button>
@@ -70,6 +73,27 @@
 <button type="submit" id="registerSubmitBtn" data-i18n="register.submit">إرسال طلب التسجيل</button>
 </form>
 </div>
+</div>
+
+<!-- ================= إعداد أول حساب أدمن (بيظهر بس لو مفيش أدمن في الشيت خالص) ================= -->
+<div class="auth-panel" id="setupPanel">
+<h2 data-i18n="setup.title">🛠️ إعداد أول حساب أدمن للنظام</h2>
+<p style="color:var(--text-muted); font-size:13.5px; margin-top:-6px;" data-i18n="setup.note">الموقع مفيهوش أي حساب أدمن لسه. اعمل أول حساب أدمن دلوقتي عشان تقدر تدير باقي المستخدمين والتقارير.</p>
+
+<p id="setupError" class="error" style="display:none;"></p>
+
+<form id="setupForm">
+<input type="text" id="setup_full_name" placeholder="اسمك الكامل" required data-i18n-ph="setup.fullNamePh">
+<input type="text" id="setup_username" placeholder="اسم المستخدم (يوزر نيم)" required data-i18n-ph="setup.usernamePh">
+<input type="password" id="setup_password" placeholder="كلمة المرور" required data-i18n-ph="setup.passwordPh">
+<input type="password" id="setup_password_confirm" placeholder="تأكيد كلمة المرور" required data-i18n-ph="setup.confirmPasswordPh">
+
+<div id="setupCaptchaContainer"></div>
+
+<br>
+<button type="submit" id="setupSubmitBtn" data-i18n="setup.submit">✅ إنشاء حساب الأدمن وتسجيل الدخول</button>
+</form>
+</div>
 
 </div>
 
@@ -90,6 +114,34 @@ const loginCaptcha = initCaptcha('login');
 
 document.getElementById('registerCaptchaContainer').innerHTML = captchaWidgetHtml('register');
 const registerCaptcha = initCaptcha('register');
+
+document.getElementById('setupCaptchaContainer').innerHTML = captchaWidgetHtml('setup');
+const setupCaptcha = initCaptcha('setup');
+
+// ============================================================
+// أول ما تفتح الصفحة: بنتحقق هل فيه حساب أدمن واحد على الأقل في شيت المستخدمين.
+// لو مفيش أي أدمن خالص (أول تشغيل للموقع على شيت جديد)، بنعرض فورم "إعداد أول أدمن"
+// بدل شاشة تسجيل الدخول العادية، وبمجرد ما يتم إنشاؤه بيتضاف تلقائيًا في شيت Users.
+// ============================================================
+(async function initAuthView(){
+    if (getSession()) return; // هيتحول للداشبورد من السطر اللي فوق أصلًا
+    const loadingMsg = document.getElementById('initLoadingMsg');
+    try {
+        const users = await sheetsGetUsers();
+        const hasAdmin = users.some(u => u.role === 'admin');
+        if (!hasAdmin) {
+            document.getElementById('setupPanel').classList.add('active');
+        } else {
+            document.getElementById('normalAuthWrap').style.display = '';
+        }
+    } catch (err) {
+        console.error('initAuthView error:', err);
+        // لو حصل خطأ في التحقق (مشكلة اتصال مثلًا)، نعرض شاشة الدخول العادية عشان الموقع مايفضلش عالق
+        document.getElementById('normalAuthWrap').style.display = '';
+    } finally {
+        loadingMsg.style.display = 'none';
+    }
+})();
 
 function switchAuthTab(which){
     document.getElementById('tabLoginBtn').classList.toggle('active', which === 'login');
@@ -233,6 +285,83 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = t('register.submit');
+    }
+});
+
+// ============================================================
+// فورم إعداد أول حساب أدمن — بيظهر بس لو مفيش أدمن في شيت Users خالص.
+// بيضيف الحساب مباشرة بصلاحية admin (من غير مرور بمرحلة الموافقة اللي بتتطلب أدمن أصلًا)
+// وبعد النجاح بيسجّل دخول تلقائيًا.
+// ============================================================
+document.getElementById('setupForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const errorEl = document.getElementById('setupError');
+    errorEl.style.display = 'none';
+
+    if (!setupCaptcha.verify()) {
+        errorEl.textContent = t('captcha.mismatch');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const full_name = document.getElementById('setup_full_name').value.trim();
+    const username = document.getElementById('setup_username').value.trim();
+    const password = document.getElementById('setup_password').value;
+    const passwordConfirm = document.getElementById('setup_password_confirm').value;
+
+    if (password !== passwordConfirm) {
+        errorEl.textContent = t('setup.errPasswordMismatch');
+        errorEl.style.display = 'block';
+        setupCaptcha.regenerate();
+        return;
+    }
+
+    const submitBtn = document.getElementById('setupSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = t('setup.submitLoading');
+
+    try {
+        const users = await sheetsGetUsers();
+
+        // حماية إضافية: لو حد تاني عمل أدمن في نفس اللحظة، أو اليوزرنيم مكرر
+        if (users.some(u => u.role === 'admin')) {
+            window.location.reload();
+            return;
+        }
+        if (users.some(u => u.username === username)) {
+            errorEl.textContent = t('setup.errUsernameTaken');
+            errorEl.style.display = 'block';
+            setupCaptcha.regenerate();
+            return;
+        }
+
+        const hashedPassword = await hashPassword(password);
+        users.push({
+            username, full_name, password: hashedPassword, role: 'admin',
+            status: 'active', idle_time: 30, warning_time: 5,
+            phone: '', employee_id: '', email: '',
+            subscription_start: '', subscription_end: '' // فترة التشغيل مش بتتطبق على الأدمن
+        });
+
+        const ok = await sheetsSaveUsers(users);
+        if (ok) {
+            setSession(username, 'admin');
+            window.location.href = 'dashboard.html';
+        } else {
+            errorEl.textContent = t('setup.errSaveFailed');
+            errorEl.style.display = 'block';
+            setupCaptcha.regenerate();
+        }
+    } catch (err) {
+        console.error('setup admin error:', err);
+        errorEl.textContent = (err && err.message === 'crypto_unavailable')
+            ? t('register.errHttps')
+            : t('login.errUnexpected');
+        errorEl.style.display = 'block';
+        setupCaptcha.regenerate();
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('setup.submit');
     }
 });
 </script>
