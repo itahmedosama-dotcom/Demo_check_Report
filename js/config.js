@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // إعدادات الاتصال بـ Google Sheets عبر Apps Script
 // ⚠️ تحذير: هذا الملف يظهر بالكامل لأي زائر للموقع (لأنه HTML/JS ثابت).
 // أي حد يقدر يشوف الرابط والمفتاح من كود الصفحة ويستخدمهم مباشرة.
@@ -7,7 +7,7 @@
 // لكل المستخدمين، استخدم قسم "🔗 ربط Google Sheet" في صفحة الإعدادات
 // (أدمن بس) وحمّل ملف config.js الجديد بعد التعديل، وارفعه بدل الملف ده.
 // ============================================================
-const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbz-4JqJpcVIrSvCGP65Xd3odrz6ZWi5yui9aKeZN5b41vhzWJN4QP_NFTpUJLUQOUTV_Q/exec';
+constDEFAULT_API_URL='https://script.google.com/macros/s/AKfycbwWbwbyoBLWa_3NaOjtSMhT_sDHdh-34SY0oMko9zZmZ50-9DABV2ZXWyJXab0dfXMM/exec';
 const DEFAULT_API_KEY = 'Nsh2026SecretKeyXyz';
 
 // ------------------------------------------------------------
