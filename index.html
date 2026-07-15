@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<script>(function(){var l=localStorage.getItem('nsh_lang')||'ar';document.documentElement.lang=l;document.documentElement.dir=(l==='ar'?'rtl':'ltr');})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تسجيل الدخول</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f7a2e">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body data-i18n-doctitle="login.title">
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong data-i18n="common.orgName">مجمع نهج الشفاء الطبي العام</strong>
+        <span>NAHJ AL-SHIFAA GENERAL MEDICAL COMPLEX</span>
+    </div>
+</header>
+
+<div class="container narrow">
+
+<div class="auth-tabs">
+    <button type="button" class="auth-tab-btn active" id="tabLoginBtn" onclick="switchAuthTab('login')" data-i18n="login.tab">تسجيل الدخول</button>
+    <button type="button" class="auth-tab-btn" id="tabRegisterBtn" onclick="switchAuthTab('register')" data-i18n="register.tab">تسجيل موظف جديد</button>
+</div>
+
+<!-- ================= تسجيل الدخول ================= -->
+<div class="auth-panel active" id="loginPanel">
+<h2 data-i18n="login.title">تسجيل الدخول</h2>
+
+<p id="error" class="error" style="display:none;"></p>
+
+<form id="loginForm">
+<input type="text" id="username" placeholder="اسم المستخدم" required data-i18n-ph="login.usernamePh">
+<input type="password" id="password" placeholder="كلمة المرور" required data-i18n-ph="login.passwordPh">
+
+<div id="loginCaptchaContainer"></div>
+
+<br>
+<button type="submit" data-i18n="login.submit">دخول</button>
+</form>
+
+<a href="view.html" class="check-link" data-i18n="login.checkResult">🔍 التحقق من النتيجة</a>
+</div>
+
+<!-- ================= تسجيل موظف جديد ================= -->
+<div class="auth-panel" id="registerPanel">
+<h2 data-i18n="register.title">تسجيل موظف جديد</h2>
+<p style="color:var(--text-muted); font-size:13.5px; margin-top:-6px;" data-i18n="register.note">هيتم إرسال طلبك إلى الأدمن للموافقة عليه قبل ما تقدر تدخل بحسابك.</p>
+
+<p id="regError" class="error" style="display:none;"></p>
+<div id="regPendingNote" class="pending-note" style="display:none;" data-i18n="register.pendingNote">✅ تم إرسال طلب التسجيل بنجاح! برجاء انتظار موافقة الأدمن على حسابك قبل تسجيل الدخول.</div>
+
+<form id="registerForm">
+<input type="text" id="reg_full_name" placeholder="اسمك" required data-i18n-ph="register.fullNamePh">
+<input type="text" id="reg_username" placeholder="يوزر نيم" required data-i18n-ph="register.usernamePh">
+<input type="tel" id="reg_phone" placeholder="رقم التليفون" required data-i18n-ph="register.phonePh">
+<input type="text" id="reg_employee_id" placeholder="الرقم الوظيفي" required data-i18n-ph="register.employeeIdPh">
+<input type="email" id="reg_email" placeholder="الايميل (اختياري)" data-i18n-ph="register.emailPh">
+<input type="password" id="reg_password" placeholder="باسورد" required data-i18n-ph="register.passwordPh">
+
+<div id="registerCaptchaContainer"></div>
+
+<br>
+<button type="submit" id="registerSubmitBtn" data-i18n="register.submit">إرسال طلب التسجيل</button>
+</form>
+</div>
+
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/branding.js"></script>
+<script src="js/captcha.js"></script>
+<script src="js/whatsapp.js"></script>
+<script src="js/footer.js"></script>
+<script src="js/pwa.js"></script>
+<script>
+// لو المستخدم مسجل دخول بالفعل، يروح على الداشبورد مباشرة
+if (getSession()) window.location.href = 'dashboard.html';
+
+document.getElementById('loginCaptchaContainer').innerHTML = captchaWidgetHtml('login');
+const loginCaptcha = initCaptcha('login');
+
+document.getElementById('registerCaptchaContainer').innerHTML = captchaWidgetHtml('register');
+const registerCaptcha = initCaptcha('register');
+
+function switchAuthTab(which){
+    document.getElementById('tabLoginBtn').classList.toggle('active', which === 'login');
+    document.getElementById('tabRegisterBtn').classList.toggle('active', which === 'register');
+    document.getElementById('loginPanel').classList.toggle('active', which === 'login');
+    document.getElementById('registerPanel').classList.toggle('active', which === 'register');
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+
+    if (!loginCaptcha.verify()) {
+        errorEl.textContent = t('captcha.mismatch');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const submitBtn = e.target.querySelector('button');
+    submitBtn.disabled = true;
+    submitBtn.textContent = t('login.submitLoading');
+
+    try {
+        const hashedPassword = await hashPassword(password);
+        const users = await sheetsGetUsers();
+        const match = users.find(u => u.username == username && u.password == hashedPassword);
+
+        if (match && match.status === 'inactive') {
+            errorEl.textContent = t('login.errAccountInactive');
+            errorEl.style.display = 'block';
+            loginCaptcha.regenerate();
+            return;
+        }
+
+        // فترة تشغيل الحساب (من تاريخ - إلى تاريخ) — مش بتتطبق على حساب الأدمن خالص
+        if (match && match.role !== 'admin') {
+            const today = Utilities_todayDateStr();
+            if (match.subscription_start && today < match.subscription_start) {
+                errorEl.textContent = t('login.errSubscriptionNotStarted');
+                errorEl.style.display = 'block';
+                loginCaptcha.regenerate();
+                return;
+            }
+            if (match.subscription_end && today > match.subscription_end) {
+                errorEl.textContent = t('login.errSubscriptionExpired');
+                errorEl.style.display = 'block';
+                loginCaptcha.regenerate();
+                return;
+            }
+        }
+
+        if (match) {
+            setSession(username, match.role);
+            window.location.href = 'dashboard.html';
+            return;
+        }
+
+        // نتحقق هل الطلب لسه بانتظار موافقة الأدمن عشان نديله رسالة أوضح
+        const pending = await sheetsGetPending();
+        const pendingMatch = pending.find(p => p.username == username);
+        if (pendingMatch) {
+            errorEl.textContent = t('login.errPendingApproval');
+        } else {
+            errorEl.textContent = t('login.errWrongCredentials');
+        }
+        errorEl.style.display = 'block';
+        loginCaptcha.regenerate();
+    } catch (err) {
+        console.error('login error:', err);
+        errorEl.textContent = (err && err.message === 'crypto_unavailable')
+            ? t('login.errHttps')
+            : t('login.errUnexpected');
+        errorEl.style.display = 'block';
+        loginCaptcha.regenerate();
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('login.submit');
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const errorEl = document.getElementById('regError');
+    const noteEl = document.getElementById('regPendingNote');
+    errorEl.style.display = 'none';
+    noteEl.style.display = 'none';
+
+    if (!registerCaptcha.verify()) {
+        errorEl.textContent = t('captcha.mismatch');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const full_name = document.getElementById('reg_full_name').value.trim();
+    const username = document.getElementById('reg_username').value.trim();
+    const phone = document.getElementById('reg_phone').value.trim();
+    const employee_id = document.getElementById('reg_employee_id').value.trim();
+    const email = document.getElementById('reg_email').value.trim();
+    const password = document.getElementById('reg_password').value;
+
+    const submitBtn = document.getElementById('registerSubmitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = t('register.submitLoading');
+
+    try {
+        const [users, pending] = await Promise.all([sheetsGetUsers(), sheetsGetPending()]);
+
+        if (users.some(u => u.username === username) || pending.some(p => p.username === username)) {
+            errorEl.textContent = t('register.errUsernameTaken');
+            errorEl.style.display = 'block';
+            registerCaptcha.regenerate();
+            return;
+        }
+
+        const hashedPassword = await hashPassword(password);
+        pending.push({
+            full_name, username, phone, employee_id, email, password: hashedPassword,
+            requested_at: new Date().toISOString().slice(0,19).replace('T',' '),
+            status: 'pending'
+        });
+
+        const ok = await sheetsSavePending(pending);
+        if (ok) {
+            e.target.reset();
+            noteEl.style.display = 'block';
+        } else {
+            errorEl.textContent = t('register.errSaveFailed');
+            errorEl.style.display = 'block';
+        }
+        registerCaptcha.regenerate();
+    } catch (err) {
+        console.error('register error:', err);
+        errorEl.textContent = (err && err.message === 'crypto_unavailable')
+            ? t('register.errHttps')
+            : t('login.errUnexpected');
+        errorEl.style.display = 'block';
+        registerCaptcha.regenerate();
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('register.submit');
+    }
+});
+</script>
+
+</body>
+</html>

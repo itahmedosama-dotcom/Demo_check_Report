@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<script>(function(){var l=localStorage.getItem('nsh_lang')||'ar';document.documentElement.lang=l;document.documentElement.dir=(l==='ar'?'rtl':'ltr');})();</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بحث التقرير</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f7a2e">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/jpeg" href="img/logo.jpg">
+</head>
+<body data-i18n-doctitle="view.title">
+
+<header class="site-header">
+    <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" class="logo-img">
+    <div class="brand-text">
+        <strong data-i18n="common.orgName">مجمع نهج الشفاء الطبي العام</strong>
+        <span data-i18n="view.subtitle">نظام التحقق من التقارير</span>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+        <a href="index.html" class="back-btn" data-i18n="nav.backLogin">⬅️ تسجيل الدخول</a>
+    </div>
+</header>
+
+<div class="container medium">
+<h2 data-i18n="view.title">بحث عن التقرير</h2>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="view.instructions">أدخل رقم الباسبور أو الإقامة للتحقق من حالة تقريرك. التاريخ والتليفون اختياريان ويُستخدمان لتضييق نتائج البحث فقط.</p>
+
+<p id="error" class="error" style="display:none;"></p>
+
+<form id="searchForm">
+<label data-i18n="view.passportLabel">رقم الباسبور أو الإقامة:</label>
+<input type="text" id="passport" required>
+
+<label><span data-i18n="view.dateLabel">تاريخ التقرير</span> <span class="field-hint" style="display:inline;" data-i18n="view.optional">(اختياري)</span></label>
+<input type="date" id="report_date">
+<span class="field-hint" data-i18n="view.dateHint">اتركه فارغًا لو مش متأكد من التاريخ بالظبط</span>
+
+<label><span data-i18n="view.phoneLabel">رقم التليفون</span> <span class="field-hint" style="display:inline;" data-i18n="view.optional">(اختياري)</span></label>
+<input type="text" id="phone">
+
+<div id="searchCaptchaContainer"></div>
+
+<br>
+<button type="submit" data-i18n="view.submit">بحث</button>
+</form>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/branding.js"></script>
+<script src="js/captcha.js"></script>
+<script src="js/whatsapp.js"></script>
+<script src="js/footer.js"></script>
+<script src="js/pwa.js"></script>
+<script>
+document.getElementById('searchCaptchaContainer').innerHTML = captchaWidgetHtml('search', 'ونمنع الإزعاج على السيستم');
+const searchCaptcha = initCaptcha('search');
+
+document.getElementById('searchForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const errorEl = document.getElementById('error');
+    errorEl.style.display = 'none';
+
+    if (!searchCaptcha.verify()) {
+        errorEl.textContent = t('captcha.mismatch');
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const passport = document.getElementById('passport').value.trim();
+    const report_date = document.getElementById('report_date').value;
+    const phone = document.getElementById('phone').value.trim();
+    const params = new URLSearchParams({ passport, report_date, phone });
+    window.location.href = 'report_result.html?' + params.toString();
+});
+</script>
+
+</body>
+</html>
