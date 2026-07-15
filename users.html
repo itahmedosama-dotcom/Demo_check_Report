@@ -166,6 +166,44 @@
 </form>
 </div>
 
+<div class="settings-section" id="externalProvidersSection">
+<h3 data-i18n="users.providersTitle">🔌 ربط مزودي خدمة خارجيين (SMS / WhatsApp API)</h3>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.providersDesc">إعدادات ربط مزود إرسال SMS و/أو WhatsApp Business API. بعد تعبئة البيانات وتفعيل المزود، هيظهر زرار إرسال فعلي وتلقائي (📤 / 📩) بجانب كل تقرير في لوحة التحكم، بيبعت الرسالة مباشرة للعميل من غير أي خطوة يدوية. الإرسال بيحصل من Apps Script نفسه (مش من المتصفح) عشان توكن/مفتاح المزود يفضل مخبّى.</p>
+<p id="providersMsg" class="success" style="display:none;"></p>
+<form id="providersForm">
+
+<h4 style="margin-bottom:6px;" data-i18n="users.smsSectionTitle">📩 مزود SMS</h4>
+<label data-i18n="users.smsProviderLabel">اسم المزود</label>
+<input type="text" id="sms_provider" placeholder="Unifonic / Msegat / Twilio ...">
+<label data-i18n="users.apiUrlLabel">رابط API</label>
+<input type="url" id="sms_api_url" placeholder="https://api.provider.com/send">
+<label data-i18n="users.apiKeyLabel">المفتاح السري (API Key)</label>
+<input type="text" id="sms_api_key" placeholder="xxxxxxxxxxxx">
+<label data-i18n="users.smsSenderLabel">اسم/رقم المرسل (Sender ID)</label>
+<input type="text" id="sms_sender_id" placeholder="integriox">
+<p class="field-hint" data-i18n="users.smsTwilioHint">💡 لو المزود Twilio: اكتب في "المفتاح السري" كده بالظبط: AccountSid:AuthToken (يعني الاتنين مفصولين بـ :)، وفي "اسم/رقم المرسل" رقم Twilio بتاعك (مثال: +15551234567).</p>
+<label class="checkbox-row"><input type="checkbox" id="sms_enabled"> <span data-i18n="users.providerEnabledLabel">تفعيل هذا المزود</span></label>
+
+<h4 style="margin:18px 0 6px;" data-i18n="users.waApiSectionTitle">💬 WhatsApp Business API</h4>
+<label data-i18n="users.waProviderLabel">اسم المزود</label>
+<input type="text" id="wa_api_provider" placeholder="Meta Cloud API / Twilio / 360dialog ...">
+<label data-i18n="users.apiUrlLabel">رابط API</label>
+<input type="url" id="wa_api_url" placeholder="https://graph.facebook.com/v20.0/...">
+<label data-i18n="users.apiTokenLabel">التوكن (Access Token)</label>
+<input type="text" id="wa_api_token" placeholder="xxxxxxxxxxxx">
+<label data-i18n="users.waPhoneIdLabel">معرّف رقم الهاتف (Phone Number ID)</label>
+<input type="text" id="wa_phone_number_id" placeholder="1234567890">
+<p class="field-hint" data-i18n="users.waProviderHint">💡 Meta Cloud API (الافتراضي): سيب "اسم المزود" فاضي أو اكتب Meta، والتوكن هو الـ Access Token من Meta for Developers، ومعرّف رقم الهاتف هو الـ Phone Number ID بتاعك. لو Twilio: اكتب Twilio في "اسم المزود"، وفي التوكن اكتب AccountSid:AuthToken، وفي معرّف رقم الهاتف اكتب رقم واتساب Twilio (مثال: +15551234567).</p>
+<label class="checkbox-row"><input type="checkbox" id="wa_api_enabled"> <span data-i18n="users.providerEnabledLabel">تفعيل هذا المزود</span></label>
+
+<p class="field-hint" data-i18n="users.providersWarningNote">⚠️ زي باقي إعدادات الموقع الثابت ده: أي مفتاح API بتحفظه هنا هيكون ظاهر لأي زائر يفتح كود الصفحة (View Source)، بالظبط زي مفتاح Google Sheets الحالي. متحطش هنا مفاتيح حساسة لحسابات فيها بيانات دفع أو صلاحيات واسعة.</p>
+
+<div class="branding-actions">
+<button type="submit" data-i18n="users.saveProvidersBtn">💾 حفظ إعدادات الربط</button>
+</div>
+</form>
+</div>
+
 <div class="settings-section" id="backupSection">
 <h3 data-i18n="backup.title">💾 نسخة احتياطية كاملة</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="backup.desc">يحمّل ملف Excel واحد فيه كل بيانات النظام (التقارير، المستخدمون، الإعدادات، طلبات التسجيل) كنسخة احتياطية على جهازك.</p>
@@ -208,10 +246,12 @@ if (session.role === 'supervisor') {
     if (brandingNote) brandingNote.style.display = 'block';
 }
 
-// قسم ربط Google Sheet ونسخة الباك أب الكاملة متاحين للأدمن بس (مش حتى مشرف النظام)
+// قسم ربط Google Sheet، ربط مزودي SMS/WhatsApp، ونسخة الباك أب الكاملة متاحين للأدمن بس (مش حتى مشرف النظام)
 if (session.role !== 'admin') {
     const apiSection = document.getElementById('apiConfigSection');
     if (apiSection) apiSection.style.display = 'none';
+    const providersSection = document.getElementById('externalProvidersSection');
+    if (providersSection) providersSection.style.display = 'none';
     const backupSection = document.getElementById('backupSection');
     if (backupSection) backupSection.style.display = 'none';
 }
@@ -305,6 +345,20 @@ async function loadWaSettings(){
     document.getElementById('color_secondary').value = settingsData.color_secondary || DEFAULT_BRAND_COLORS.secondary;
     document.getElementById('color_accent').value = settingsData.color_accent || DEFAULT_BRAND_COLORS.accent;
     document.getElementById('logoPreview').src = settingsData.logo_data || 'img/logo.jpg';
+
+    const providersForm = document.getElementById('providersForm');
+    if (providersForm) {
+        document.getElementById('sms_provider').value = settingsData.sms_provider || '';
+        document.getElementById('sms_api_url').value = settingsData.sms_api_url || '';
+        document.getElementById('sms_api_key').value = settingsData.sms_api_key || '';
+        document.getElementById('sms_sender_id').value = settingsData.sms_sender_id || '';
+        document.getElementById('sms_enabled').checked = settingsData.sms_enabled === 'true' || settingsData.sms_enabled === true;
+        document.getElementById('wa_api_provider').value = settingsData.wa_api_provider || '';
+        document.getElementById('wa_api_url').value = settingsData.wa_api_url || '';
+        document.getElementById('wa_api_token').value = settingsData.wa_api_token || '';
+        document.getElementById('wa_phone_number_id').value = settingsData.wa_phone_number_id || '';
+        document.getElementById('wa_api_enabled').checked = settingsData.wa_api_enabled === 'true' || settingsData.wa_api_enabled === true;
+    }
 }
 
 document.getElementById('waSettingsForm').addEventListener('submit', async function(e){
@@ -354,6 +408,40 @@ document.getElementById('copyrightSettingsForm').addEventListener('submit', asyn
     }
     setTimeout(() => { copyrightMsgEl.style.display = 'none'; }, 7000);
 });
+
+const providersFormEl = document.getElementById('providersForm');
+if (providersFormEl) {
+    providersFormEl.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (session.role !== 'admin') return;
+        const providersMsgEl = document.getElementById('providersMsg');
+
+        settingsData = {
+            ...settingsData,
+            sms_provider: document.getElementById('sms_provider').value.trim(),
+            sms_api_url: document.getElementById('sms_api_url').value.trim(),
+            sms_api_key: document.getElementById('sms_api_key').value.trim(),
+            sms_sender_id: document.getElementById('sms_sender_id').value.trim(),
+            sms_enabled: String(document.getElementById('sms_enabled').checked),
+            wa_api_provider: document.getElementById('wa_api_provider').value.trim(),
+            wa_api_url: document.getElementById('wa_api_url').value.trim(),
+            wa_api_token: document.getElementById('wa_api_token').value.trim(),
+            wa_phone_number_id: document.getElementById('wa_phone_number_id').value.trim(),
+            wa_api_enabled: String(document.getElementById('wa_api_enabled').checked)
+        };
+        const ok = await sheetsSaveSettings(settingsData);
+        if (ok) {
+            providersMsgEl.textContent = t('users.msgProvidersSaved');
+            providersMsgEl.className = 'success';
+            providersMsgEl.style.display = 'block';
+        } else {
+            providersMsgEl.textContent = t('users.msgSaveErrorGeneric');
+            providersMsgEl.className = 'error';
+            providersMsgEl.style.display = 'block';
+        }
+        setTimeout(() => { providersMsgEl.style.display = 'none'; }, 7000);
+    });
+}
 
 // ============================================================
 // هوية الشركة (الشعار / الاسم / الألوان)

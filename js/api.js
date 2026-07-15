@@ -85,6 +85,31 @@ async function sheetsSaveSettings(settingsObj) {
     return sheetsSave('settings', [settingsObj]);
 }
 
+// ------- إرسال إشعار SMS/واتساب فعلي عبر مزود خارجي -------
+// بيبعت الطلب لنفس رابط Apps Script بأكشن مختلف (send_notification) بدل حفظ
+// شيت، عشان الإرسال الفعلي (وأي مفتاح/توكن لمزود SMS أو واتساب) يفضل حاصل
+// من جوه Code.gs نفسه (سيرفر جوجل) مش من كود جوه متصفح الزائر.
+async function sendAutoNotification(channel, phone, message) {
+    if (!API_URL || !API_KEY) {
+        return { ok: false, error: 'api_not_configured' };
+    }
+    try {
+        const payload = JSON.stringify({ key: API_KEY, action: 'send_notification', channel, phone, message });
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: payload
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok || !body || body.error) {
+            return { ok: false, error: (body && body.error) || ('http_' + res.status) };
+        }
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: String(e) };
+    }
+}
+
 // ------- طلبات تسجيل الموظفين الجدد (بانتظار موافقة الأدمن) -------
 async function sheetsGetPending() { return sheetsGet('pending_users'); }
 async function sheetsSavePending(rows) { return sheetsSave('pending_users', rows); }

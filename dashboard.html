@@ -184,6 +184,13 @@ if (isAdmin) {
     document.getElementById('bulkDeleteToolbar').style.display = 'flex';
 }
 let selectedRowIndexes = new Set();
+// إعدادات مزوّدي SMS/واتساب الفعليين (بتتحمّل مرة واحدة عشان نعرف نظهر
+// أزرار الإرسال التلقائي بس لو المزود متفعّل فعلاً من صفحة الإعدادات)
+let providerSettings = {};
+async function loadProviderSettings() {
+    providerSettings = await sheetsGetSettings();
+    renderTable();
+}
 
 function showError(msg){
     const el = document.getElementById('errorMsg');
@@ -218,6 +225,14 @@ function renderTable(){
         const checkboxTd = isAdmin
             ? `<td><input type="checkbox" class="rowSelectCheckbox" data-index="${index}" ${selectedRowIndexes.has(index) ? 'checked' : ''}></td>`
             : '';
+        const waAutoEnabled = providerSettings.wa_api_enabled === 'true' || providerSettings.wa_api_enabled === true;
+        const smsAutoEnabled = providerSettings.sms_enabled === 'true' || providerSettings.sms_enabled === true;
+        const waAutoBtn = waAutoEnabled
+            ? `<button type="button" class="icon-action-btn wa-auto-action-btn" title="${t('action.waAutoTitle')}" onclick="sendReportViaWhatsAppAuto(reportsData[${index}])">📤</button>`
+            : '';
+        const smsAutoBtn = smsAutoEnabled
+            ? `<button type="button" class="icon-action-btn sms-auto-action-btn" title="${t('action.smsAutoTitle')}" onclick="sendReportViaSmsAuto(reportsData[${index}])">📩</button>`
+            : '';
         html += `<tr ${rowClass}>
             ${checkboxTd}
             <td>${escapeHtml(report.passport)}</td>
@@ -232,6 +247,8 @@ function renderTable(){
                 <div class="action-icons">
                     <button type="button" class="icon-action-btn qr-action-btn" title="${t('action.qrTitle')}" onclick="showReportQr(reportsData[${index}])">📱</button>
                     <button type="button" class="icon-action-btn wa-action-btn" title="${t('action.waTitle')}" onclick="sendReportViaWhatsApp(reportsData[${index}])">💬</button>
+                    ${waAutoBtn}
+                    ${smsAutoBtn}
                 </div>
             </td>
             <td>${delCell}</td>
@@ -458,6 +475,7 @@ function updateDisplay(seconds){
     }
     startTimer();
     await loadReports();
+    await loadProviderSettings();
 })();
 
 window.addEventListener('nsh:langchange', renderTable);

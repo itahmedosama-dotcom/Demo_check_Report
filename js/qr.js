@@ -152,3 +152,51 @@ async function sendReportViaWhatsApp(report) {
     const waLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     setTimeout(() => window.open(waLink, '_blank'), ok ? 900 : 0);
 }
+
+// ============================================================
+// إرسال فعلي وتلقائي (من غير خطوات يدوية) عبر مزوّد SMS أو WhatsApp Business
+// API حقيقي — بيحتاج تفعيل وتعبئة بيانات المزود من صفحة الإعدادات أولاً.
+// الإرسال نفسه بيحصل من Apps Script (Code.gs) مش من هنا، عشان توكن/مفتاح
+// المزود يفضل مخبّى ومايتشافش من أي زائر بيفتح كود الصفحة.
+// ============================================================
+
+function buildAutoNotificationMessage(report) {
+    const link = buildReportVerifyLink(report);
+    const isValid = report.report_status === 'valid';
+    const statusText = isValid ? t('qr.waStatusValid') : t('qr.waStatusNotValid');
+    return `${t('qr.waGreeting', { name: report.name_ar || report.name_en || '' })}\n` +
+        `${t('qr.waStatusLine', { date: report.report_date || '', status: statusText })}\n\n` +
+        `${t('qr.waCheckLine')}\n${link}\n\n` +
+        `${window.__nshCompanyName || t('common.orgName')}`;
+}
+
+async function sendReportViaWhatsAppAuto(report) {
+    if (!report) return;
+    const phone = normalizePhoneForWhatsApp(report.phone);
+    if (!phone) { showToast(t('qr.noPhone'), true); return; }
+
+    showToast(t('qr.autoSending'));
+    const message = buildAutoNotificationMessage(report);
+    const result = await sendAutoNotification('whatsapp', phone, message);
+    if (result.ok) {
+        showToast(t('qr.autoSentSuccessWa'));
+    } else {
+        showToast(t('qr.autoSentFail', { error: result.error || '' }), true);
+    }
+}
+
+async function sendReportViaSmsAuto(report) {
+    if (!report) return;
+    // نفس التطبيع الدولي (05x -> 9665x) بيصلح لغالبية مزودي الـ SMS كمان
+    const phone = normalizePhoneForWhatsApp(report.phone);
+    if (!phone) { showToast(t('qr.noPhone'), true); return; }
+
+    showToast(t('qr.autoSending'));
+    const message = buildAutoNotificationMessage(report);
+    const result = await sendAutoNotification('sms', phone, message);
+    if (result.ok) {
+        showToast(t('qr.autoSentSuccessSms'));
+    } else {
+        showToast(t('qr.autoSentFail', { error: result.error || '' }), true);
+    }
+}
