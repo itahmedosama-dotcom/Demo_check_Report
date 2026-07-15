@@ -165,6 +165,14 @@
 </div>
 </form>
 </div>
+
+<div class="settings-section" id="backupSection">
+<h3 data-i18n="backup.title">💾 نسخة احتياطية كاملة</h3>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="backup.desc">يحمّل ملف Excel واحد فيه كل بيانات النظام (التقارير، المستخدمون، الإعدادات، طلبات التسجيل) كنسخة احتياطية على جهازك.</p>
+<div class="branding-actions">
+<button type="button" id="downloadBackupBtn" data-i18n="backup.btn">⬇️ تحميل نسخة احتياطية (Excel)</button>
+</div>
+</div>
 </div>
 
 <div id="deleteModal" class="modal">
@@ -175,6 +183,7 @@
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/api.js"></script>
@@ -199,10 +208,12 @@ if (session.role === 'supervisor') {
     if (brandingNote) brandingNote.style.display = 'block';
 }
 
-// قسم ربط Google Sheet متاح للأدمن بس (مش حتى مشرف النظام)
+// قسم ربط Google Sheet ونسخة الباك أب الكاملة متاحين للأدمن بس (مش حتى مشرف النظام)
 if (session.role !== 'admin') {
     const apiSection = document.getElementById('apiConfigSection');
     if (apiSection) apiSection.style.display = 'none';
+    const backupSection = document.getElementById('backupSection');
+    if (backupSection) backupSection.style.display = 'none';
 }
 
 function renderPending(){
@@ -542,6 +553,45 @@ document.getElementById('resetApiBtn').addEventListener('click', function () {
     showApiConfigMsg(t('users.msgApiReset'), false);
     setTimeout(() => window.location.reload(), 1200);
 });
+
+const backupBtn = document.getElementById('downloadBackupBtn');
+if (backupBtn) {
+    backupBtn.addEventListener('click', async function () {
+        if (session.role !== 'admin') return;
+        if (typeof XLSX === 'undefined') {
+            showMsg(t('backup.failed'));
+            return;
+        }
+        backupBtn.disabled = true;
+        showToast(t('backup.preparing'));
+        try {
+            const [reports, users, pending, settingsRow] = await Promise.all([
+                sheetsGetData(),
+                sheetsGetUsers(),
+                sheetsGetPending(),
+                sheetsGetSettings()
+            ]);
+            // ملف الباك أب ده نسخة كاملة أمينة للاستعادة، فبيشمل كل الأعمدة
+            // زي ما هي في الشيت (بما فيها هاش الباسورد) — نفس البيانات اللي
+            // الأدمن أصلًا شايفها في شيت Users على Google Sheets مباشرة.
+            // ⚠️ خزّن الملف الناتج في مكان آمن ومتشاركوش مع حد مش موثوق.
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reports || []), 'Reports');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(users || []), 'Users');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settingsRow ? [settingsRow] : []), 'Settings');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pending || []), 'PendingUsers');
+
+            const today = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `nsh-backup-${today}.xlsx`);
+            showToast(t('backup.success'));
+        } catch (e) {
+            console.error('backup error:', e);
+            showMsg(t('backup.failed'));
+        } finally {
+            backupBtn.disabled = false;
+        }
+    });
+}
 
 function showMsg(text){
     const el = document.getElementById('msg');

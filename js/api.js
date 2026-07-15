@@ -2,12 +2,22 @@
 // طبقة الاتصال بـ Google Sheets (بديل sheets_api.php)
 // ============================================================
 
+// بترجع true لو آخر قراءة فشلت (رابط/مفتاح ناقص، أو خطأ شبكة، أو مفتاح غلط)
+// عشان الصفحات (زي نتيجة QR) تفرّق بين "مفيش تقرير فعلاً" و"النظام مش متصل أصلًا"
+window.__nshLastFetchFailed = false;
+
 async function sheetsGet(sheetName) {
+    if (!API_URL || !API_KEY) {
+        console.error('sheetsGet: API_URL/API_KEY غير مضبوطين في js/config.js');
+        window.__nshLastFetchFailed = true;
+        return [];
+    }
     try {
         const url = `${API_URL}?sheet=${encodeURIComponent(sheetName)}&key=${encodeURIComponent(API_KEY)}`;
         const res = await fetch(url);
         if (!res.ok) {
             console.error('sheetsGet: HTTP', res.status);
+            window.__nshLastFetchFailed = true;
             return [];
         }
         const data = await res.json();
@@ -15,11 +25,14 @@ async function sheetsGet(sheetName) {
         // فلازم نتأكد إن الرد مش object فيه error بدل array البيانات
         if (data && !Array.isArray(data) && data.error) {
             console.error('sheetsGet: server error ->', data.error);
+            window.__nshLastFetchFailed = true;
             return [];
         }
+        window.__nshLastFetchFailed = false;
         return Array.isArray(data) ? data : [];
     } catch (e) {
         console.error('sheetsGet error:', e);
+        window.__nshLastFetchFailed = true;
         return [];
     }
 }

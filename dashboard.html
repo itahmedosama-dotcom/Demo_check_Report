@@ -95,6 +95,30 @@
 </div>
 
 <h3 data-i18n="dashboard.allReportsTitle">جميع التقارير</h3>
+
+<div class="toolbar" id="bulkDeleteToolbar" style="display:none;">
+    <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="reject-btn" id="deleteSelectedBtn" data-i18n="bulk.deleteSelected">🗑️ حذف المحدد</button>
+    </div>
+    <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="reject-btn" id="deleteAllBtn" data-i18n="bulk.deleteAll">🗑️ حذف كل التقارير</button>
+    </div>
+    <div class="field">
+        <label for="rangeFromDate" data-i18n="bulk.rangeFrom">من تاريخ</label>
+        <input type="date" id="rangeFromDate">
+    </div>
+    <div class="field">
+        <label for="rangeToDate" data-i18n="bulk.rangeTo">إلى تاريخ</label>
+        <input type="date" id="rangeToDate">
+    </div>
+    <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="reject-btn" id="deleteRangeBtn" data-i18n="bulk.rangeDeleteBtn">🗑️ مسح تقارير هذه الفترة</button>
+    </div>
+</div>
+
 <div class="table-wrap">
 <table id="reportsTable">
 <tr>
@@ -154,6 +178,12 @@ document.getElementById('report_date').value = new Date().toISOString().slice(0,
 if (session.role === 'admin' || session.role === 'supervisor') {
     document.getElementById('settingsLink').style.display = 'inline-block';
 }
+// حذف جماعي (الكل / تحديد / فترة): للأدمن فقط، مش حتى مشرف النظام
+const isAdmin = session.role === 'admin';
+if (isAdmin) {
+    document.getElementById('bulkDeleteToolbar').style.display = 'flex';
+}
+let selectedRowIndexes = new Set();
 
 function showError(msg){
     const el = document.getElementById('errorMsg');
@@ -170,7 +200,9 @@ function renderTable(){
     userFilter.value = currentFilterVal;
 
     const table = document.getElementById('reportsTable');
+    const checkboxTh = isAdmin ? `<th><input type="checkbox" id="selectAllCheckbox"></th>` : '';
     let html = `<tr>
+        ${checkboxTh}
         <th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th>
         <th>${t('th.user')}</th><th>${t('th.addedAt')}</th>
@@ -183,7 +215,11 @@ function renderTable(){
         const delCell = (session.role === 'admin' || session.role === 'supervisor')
             ? `<a href="#" onclick="deleteReport(${index}); return false;" style="color:#e2483d;font-weight:bold;text-decoration:none;">${t('th.delete')}</a>`
             : '-';
+        const checkboxTd = isAdmin
+            ? `<td><input type="checkbox" class="rowSelectCheckbox" data-index="${index}" ${selectedRowIndexes.has(index) ? 'checked' : ''}></td>`
+            : '';
         html += `<tr ${rowClass}>
+            ${checkboxTd}
             <td>${escapeHtml(report.passport)}</td>
             <td>${escapeHtml(report.name_ar)}</td>
             <td>${escapeHtml(report.name_en)}</td>
@@ -206,8 +242,66 @@ function renderTable(){
 
 async function loadReports(){
     reportsData = await sheetsGetData();
+    selectedRowIndexes.clear();
     renderTable();
 }
+
+// تفويض الأحداث لأن الجدول بيتعاد بناؤه بالكامل في كل renderTable
+document.getElementById('reportsTable').addEventListener('change', function(e){
+    if (e.target.id === 'selectAllCheckbox') {
+        const checked = e.target.checked;
+        selectedRowIndexes.clear();
+        if (checked) reportsData.forEach((r, i) => selectedRowIndexes.add(i));
+        renderTable();
+    } else if (e.target.classList.contains('rowSelectCheckbox')) {
+        const idx = Number(e.target.dataset.index);
+        if (e.target.checked) selectedRowIndexes.add(idx);
+        else selectedRowIndexes.delete(idx);
+    }
+});
+
+async function bulkDeleteReports(indicesToDelete, confirmMsg){
+    if (!isAdmin) return;
+    if (!indicesToDelete.length) return;
+    if (!confirm(confirmMsg)) return;
+    const toDeleteSet = new Set(indicesToDelete);
+    const backup = reportsData.slice();
+    const remaining = reportsData.filter((r, i) => !toDeleteSet.has(i));
+    const ok = await sheetsSaveData(remaining);
+    if (!ok) {
+        showError(t('bulk.deleteFailed'));
+        reportsData = backup;
+        renderTable();
+        return;
+    }
+    showToast(t('bulk.deleteSuccess'));
+    selectedRowIndexes.clear();
+    await loadReports();
+}
+
+document.getElementById('deleteSelectedBtn').addEventListener('click', function(){
+    const indices = Array.from(selectedRowIndexes);
+    if (!indices.length) { showToast(t('bulk.noneSelected'), true); return; }
+    bulkDeleteReports(indices, t('bulk.confirmSelected', { n: indices.length }));
+});
+
+document.getElementById('deleteAllBtn').addEventListener('click', function(){
+    if (!reportsData.length) { showToast(t('bulk.noneSelected'), true); return; }
+    const indices = reportsData.map((_, i) => i);
+    bulkDeleteReports(indices, t('bulk.confirmAll'));
+});
+
+document.getElementById('deleteRangeBtn').addEventListener('click', function(){
+    const from = document.getElementById('rangeFromDate').value;
+    const to = document.getElementById('rangeToDate').value;
+    if (!from || !to) { showToast(t('bulk.rangeMissing'), true); return; }
+    const indices = reportsData
+        .map((r, i) => ({ r, i }))
+        .filter(({ r }) => r.report_date && r.report_date >= from && r.report_date <= to)
+        .map(({ i }) => i);
+    if (!indices.length) { showToast(t('bulk.noneInRange'), true); return; }
+    bulkDeleteReports(indices, t('bulk.confirmRange', { from, to, n: indices.length }));
+});
 
 async function deleteReport(index){
     if (session.role !== 'admin' && session.role !== 'supervisor') return;

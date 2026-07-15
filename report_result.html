@@ -142,6 +142,11 @@ async function run(){
             const canvas = document.getElementById(`qrCard_${idx}`);
             if (canvas) drawQrOnCanvas(canvas, buildReportVerifyLink(report));
         });
+    } else if (window.__nshLastFetchFailed) {
+        container.innerHTML = `
+        <h2>${t('result.title')}</h2>
+        <p class="no-result">${t('result.connectionError')}</p>
+        <button class="search-again" onclick="window.location.href='view.html'">${t('result.searchAgain')}</button>`;
     } else {
         const anyForPassport = data.some(r => String(r.passport).trim() === passport);
         let msg;
