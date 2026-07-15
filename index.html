@@ -26,6 +26,33 @@
 
 <p id="initLoadingMsg" data-i18n="setup.checking" style="color:var(--text-muted); text-align:center;">... جاري التحقق من إعدادات النظام</p>
 
+<!-- ============================================================
+     يظهر بس لو الموقع لسه مربوطش بأي Google Sheet (config.js فاضي).
+     ده أول خطوة قبل حتى فورم "إعداد أول أدمن" — من غير رابط شيت صحيح
+     مينفعش نتحقق من وجود أدمن أصلًا.
+     ============================================================ -->
+<div id="sheetSetupPanel" style="display:none;">
+    <h2 data-i18n="sheetSetup.title">🔗 اربط الموقع بجدول Google Sheet</h2>
+    <p style="color:var(--text-muted); font-size:14px;" data-i18n="sheetSetup.note">
+        النسخة دي لسه مش مربوطة بأي شيت. الصق رابط تطبيق Apps Script (/exec) والمفتاح السري اللي عملتهم لشيتك، ثم احفظ.
+    </p>
+    <p id="sheetSetupMsg" class="success" style="display:none;"></p>
+    <form id="sheetSetupForm">
+        <label data-i18n="users.apiUrlLabel">رابط Apps Script (Web App URL)</label>
+        <input type="url" id="setup_api_url_input" placeholder="https://script.google.com/macros/s/xxxxx/exec" required>
+        <label data-i18n="users.apiKeyLabel">المفتاح السري (API Key)</label>
+        <input type="text" id="setup_api_key_input" placeholder="MySecretKeyXyz" required>
+        <p class="field-hint" data-i18n="sheetSetup.hint">
+            ⚠️ "تطبيق والمتابعة" بيشتغل على هذا الجهاز/المتصفح بس. عشان الموقع يشتغل بنفس الرابط لكل الزوار بشكل دائم،
+            حمّل ملف config.js وارفعه بدل الملف الحالي في مكان استضافة الموقع (بعدها تقدر تغيّره لاحقًا من صفحة الإعدادات كأدمن).
+        </p>
+        <div class="branding-actions">
+            <button type="submit" data-i18n="sheetSetup.applyBtn">✅ تطبيق والمتابعة</button>
+            <button type="button" id="setupDownloadConfigBtn" data-i18n="users.downloadConfigBtn">⬇️ تحميل ملف config.js المحدّث</button>
+        </div>
+    </form>
+</div>
+
 <div id="normalAuthWrap" style="display:none;">
 <div class="auth-tabs">
     <button type="button" class="auth-tab-btn active" id="tabLoginBtn" onclick="switchAuthTab('login')" data-i18n="login.tab">تسجيل الدخول</button>
@@ -119,6 +146,60 @@ document.getElementById('setupCaptchaContainer').innerHTML = captchaWidgetHtml('
 const setupCaptcha = initCaptcha('setup');
 
 // ============================================================
+// فورم أول ربط لجدول Google Sheet (يظهر لو config.js لسه فاضي)
+// ============================================================
+function showSheetSetupMsg(text, isError) {
+    const el = document.getElementById('sheetSetupMsg');
+    el.textContent = text;
+    el.className = isError ? 'error' : 'success';
+    el.style.display = 'block';
+}
+
+document.getElementById('sheetSetupForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const url = document.getElementById('setup_api_url_input').value.trim();
+    const key = document.getElementById('setup_api_key_input').value.trim();
+    if (!url || !key) {
+        showSheetSetupMsg(t('users.msgApiFieldsRequired'), true);
+        return;
+    }
+    localStorage.setItem('nsh_override_api_url', url);
+    localStorage.setItem('nsh_override_api_key', key);
+    showSheetSetupMsg(t('users.msgApiLocalApplied'), false);
+    setTimeout(() => window.location.reload(), 1000);
+});
+
+document.getElementById('setupDownloadConfigBtn').addEventListener('click', function () {
+    const url = document.getElementById('setup_api_url_input').value.trim();
+    const key = document.getElementById('setup_api_key_input').value.trim();
+    if (!url || !key) {
+        showSheetSetupMsg(t('users.msgApiFieldsRequired'), true);
+        return;
+    }
+    const escapedUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const escapedKey = key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const content = `// ============================================================
+// إعدادات الاتصال بـ Google Sheets عبر Apps Script
+// ⚠️ تحذير: هذا الملف يظهر بالكامل لأي زائر للموقع (لأنه HTML/JS ثابت).
+// أي حد يقدر يشوف الرابط والمفتاح من كود الصفحة ويستخدمهم مباشرة.
+// ============================================================
+const DEFAULT_API_URL = '${escapedUrl}';
+const DEFAULT_API_KEY = '${escapedKey}';
+
+const API_URL = (typeof localStorage !== 'undefined' && localStorage.getItem('nsh_override_api_url')) || DEFAULT_API_URL;
+const API_KEY = (typeof localStorage !== 'undefined' && localStorage.getItem('nsh_override_api_key')) || DEFAULT_API_KEY;
+`;
+    const blob = new Blob([content], { type: 'text/javascript;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'config.js';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showSheetSetupMsg(t('users.msgConfigDownloaded'), false);
+});
+
+// ============================================================
 // أول ما تفتح الصفحة: بنتحقق هل فيه حساب أدمن واحد على الأقل في شيت المستخدمين.
 // لو مفيش أي أدمن خالص (أول تشغيل للموقع على شيت جديد)، بنعرض فورم "إعداد أول أدمن"
 // بدل شاشة تسجيل الدخول العادية، وبمجرد ما يتم إنشاؤه بيتضاف تلقائيًا في شيت Users.
@@ -126,6 +207,15 @@ const setupCaptcha = initCaptcha('setup');
 (async function initAuthView(){
     if (getSession()) return; // هيتحول للداشبورد من السطر اللي فوق أصلًا
     const loadingMsg = document.getElementById('initLoadingMsg');
+
+    // لسه مفيش رابط/مفتاح شيت متسجل خالص (لا في config.js ولا كمعاينة محلية) —
+    // اعرض فورم ربط الشيت الأول قبل أي حاجة تانية.
+    if (!API_URL || !API_KEY) {
+        loadingMsg.style.display = 'none';
+        document.getElementById('sheetSetupPanel').style.display = '';
+        return;
+    }
+
     try {
         const users = await sheetsGetUsers();
         const hasAdmin = users.some(u => u.role === 'admin');

@@ -92,10 +92,11 @@ async function run(){
     lastResults = results;
 
     const container = document.getElementById('resultsContainer');
+    const currentOrgName = window.__nshCompanyName || t('common.orgName');
     const printHeader = `
         <div class="print-logo-header">
-            <img src="img/logo.jpg" alt="مجمع نهج الشفاء الطبي العام" style="height:40px;">
-            <strong data-i18n="common.orgName">مجمع نهج الشفاء الطبي العام</strong>
+            <img src="${(window.__nshSettingsCache && window.__nshSettingsCache.logo_data) || 'img/logo.jpg'}" alt="${escapeHtml(currentOrgName)}" style="height:40px;">
+            <strong>${escapeHtml(currentOrgName)}</strong>
         </div>`;
     if (results.length > 0) {
         let html = printHeader + `<h2>${t('result.title')}</h2>`;

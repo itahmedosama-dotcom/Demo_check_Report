@@ -132,7 +132,7 @@ async function sendReportViaWhatsApp(report) {
         `${t('qr.waStatusLine', { date: report.report_date || '', status: statusText })}\n\n` +
         `${t('qr.waCheckLine')}\n${link}\n\n` +
         `${t('qr.waQrLine')}\n\n` +
-        `${t('common.orgName')}`;
+        `${window.__nshCompanyName || t('common.orgName')}`;
 
     // نولّد صورة QR وننزّلها أوتوماتيك عشان الموظف يقدر يرفقها يدويًا في نفس شات واتساب
     const tempCanvas = document.createElement('canvas');
