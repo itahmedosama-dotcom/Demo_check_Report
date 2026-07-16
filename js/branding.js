@@ -71,6 +71,27 @@ function applyBranding(settings) {
     }
 }
 
+// ============================================================
+// كاش محلي (localStorage) لآخر هوية اتحمّلت بنجاح من الشيت على هذا المتصفح.
+// بيتطبّق فورًا (قبل حتى ما نستنى رد الشبكة) عشان الزائر يشوف اسم/شعار/ألوان
+// الشركة الحقيقية على طول بدل ما يشوف الهوية الافتراضية المكتوبة في الكود
+// لثانية أو اتنين لحد ما يوصل رد Apps Script. لسه بنعمل نداء شبكة عادي بعد
+// كده عشان نتأكد إن الهوية المعروضة محدّثة (لو الأدمن غيّرها من جهاز تاني).
+// ============================================================
+const BRANDING_CACHE_KEY = 'nsh_branding_cache';
+
+function applyCachedBrandingImmediately() {
+    try {
+        const raw = localStorage.getItem(BRANDING_CACHE_KEY);
+        if (!raw) return;
+        const settings = JSON.parse(raw);
+        window.__nshSettingsCache = settings;
+        applyBranding(settings);
+    } catch (e) {
+        // كاش تالف أو localStorage مش متاح: تجاهل واستنى النداء الفعلي من الشبكة
+    }
+}
+
 // بتجيب إعدادات الهوية من الشيت وتطبّقها على الصفحة الحالية
 async function loadAndApplyBranding() {
     try {
@@ -78,12 +99,17 @@ async function loadAndApplyBranding() {
         const settings = await sheetsGetSettings();
         window.__nshSettingsCache = settings;
         applyBranding(settings);
+        try { localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(settings)); } catch (e) { /* تجاهل */ }
     } catch (e) {
         // تجاهل: تفضل هوية الموقع الافتراضية (المكتوبة في الكود) شغالة لو حصل أي خطأ
         console.error('branding load error:', e);
     }
 }
 
+// بتتنفذ فورًا وقت تحميل السكريبت (مش مستنية DOMContentLoaded) عشان تسبق
+// أي فلاش للهوية الافتراضية. آمنة لأن ملف branding.js بيتحمّل في آخر الصفحة
+// (بعد ما العناصر المطلوبة زي img.logo-img تكون موجودة بالفعل في الـ HTML).
+applyCachedBrandingImmediately();
 document.addEventListener('DOMContentLoaded', loadAndApplyBranding);
 
 // لو المستخدم بدّل اللغة، نتأكد إن الاسم المخصص (لو موجود) يفضل زي ما هو

@@ -455,8 +455,16 @@ function updateDisplay(seconds){
 ['mousemove','keydown','scroll','click'].forEach(evt => document.addEventListener(evt, resetTimer));
 
 (async function init(){
+    // بنحمّل users / reports / settings مع بعض بالتوازي بدل ما نستنى كل واحد
+    // يخلص لحد ما يبدأ اللي بعده — كل نداء منهم رحلة شبكة منفصلة لـ Apps Script،
+    // فالتوازي هنا بيقلل زمن فتح الصفحة بشكل كبير بدل 3 رحلات ورا بعض.
+    const [users, reports, settings] = await Promise.all([
+        sheetsGetUsers(),
+        sheetsGetData(),
+        sheetsGetSettings()
+    ]);
+
     // نحمّل إعدادات idle الخاصة بالمستخدم الحالي
-    const users = await sheetsGetUsers();
     const u = users.find(x => x.username === session.username);
     if (u) {
         idleTime = (Number(u.idle_time) || 30) * 60;
@@ -474,8 +482,11 @@ function updateDisplay(seconds){
         }
     }
     startTimer();
-    await loadReports();
-    await loadProviderSettings();
+
+    reportsData = reports;
+    selectedRowIndexes.clear();
+    providerSettings = settings;
+    renderTable();
 })();
 
 window.addEventListener('nsh:langchange', renderTable);

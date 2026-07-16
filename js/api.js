@@ -82,9 +82,23 @@ async function sheetsSaveUsers(users) { return sheetsSave('users', users); }
 
 // ------- الإعدادات (رقم واتساب وغيره) -------
 // الشيت بيتخزن كصف واحد بس، فبنتعامل معاه كـ object مش array
+// ------------------------------------------------------------
+// ملحوظة أداء: أكتر من مكان في نفس الصفحة بينادي sheetsGetSettings() لوحده
+// (زي js/branding.js وكمان كود الصفحة نفسها)، فلو نادوا في نفس اللحظة تقريبًا
+// كانوا هيعملوا نداءين منفصلين لـ Apps Script لنفس البيانات بالظبط. هنا بنخزن
+// الـ Promise نفسه لمدة ثانيتين، فأي نداء تاني بيحصل في نفس اللحظة بياخد نفس
+// النتيجة من غير ما يعمل رحلة شبكة تانية.
+// ------------------------------------------------------------
+let __nshSettingsPromise = null;
+let __nshSettingsPromiseTime = 0;
 async function sheetsGetSettings() {
-    const rows = await sheetsGet('settings');
-    return rows[0] || {};
+    const now = Date.now();
+    if (__nshSettingsPromise && (now - __nshSettingsPromiseTime) < 2000) {
+        return __nshSettingsPromise;
+    }
+    __nshSettingsPromiseTime = now;
+    __nshSettingsPromise = sheetsGet('settings').then(rows => rows[0] || {});
+    return __nshSettingsPromise;
 }
 async function sheetsSaveSettings(settingsObj) {
     return sheetsSave('settings', [settingsObj]);
