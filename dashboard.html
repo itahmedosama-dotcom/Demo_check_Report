@@ -172,6 +172,8 @@
 const session = requireLogin();
 let reportsData = [];
 let duplicateIndex = -1;
+// index الصف اللي تحت التعديل دلوقتي (-1 يعني مفيش صف بيتعدّل). للأدمن/مشرف النظام بس.
+let editingIndex = -1;
 
 document.getElementById('currentUserLabel').textContent = session.username;
 document.getElementById('report_date').value = new Date().toISOString().slice(0,10);
@@ -217,6 +219,7 @@ function renderTable(){
 
     reportsData.forEach((report, index) => {
         const rowClass = duplicateIndex === index ? "class='duplicate-row'" : '';
+        const canEditReport = (session.role === 'admin' || session.role === 'supervisor');
         const statusClass = report.report_status === 'valid' ? 'valid' : 'not-valid';
         const statusLabel = report.report_status === 'valid' ? 'Valid' : 'Not Valid';
         const delCell = (session.role === 'admin' || session.role === 'supervisor')
@@ -233,6 +236,40 @@ function renderTable(){
         const smsAutoBtn = smsAutoEnabled
             ? `<button type="button" class="icon-action-btn sms-auto-action-btn" title="${t('action.smsAutoTitle')}" onclick="sendReportViaSmsAuto(reportsData[${index}])">📩</button>`
             : '';
+
+        // ---------- صف تحت التعديل: حقول قابلة للتعديل بدل نص عادي ----------
+        if (canEditReport && editingIndex === index) {
+            html += `<tr class="editing-row">
+                ${checkboxTd}
+                <td><input type="text" class="edit-field edit_passport" value="${escapeHtml(report.passport)}"></td>
+                <td><input type="text" class="edit-field edit_name_ar" value="${escapeHtml(report.name_ar)}"></td>
+                <td><input type="text" class="edit-field edit_name_en" value="${escapeHtml(report.name_en)}"></td>
+                <td><input type="text" class="edit-field edit_phone" value="${escapeHtml(report.phone)}"></td>
+                <td><input type="date" class="edit-field edit_report_date" value="${escapeHtml(report.report_date)}"></td>
+                <td>
+                    <select class="edit-field edit_report_status">
+                        <option value="valid" ${report.report_status === 'valid' ? 'selected' : ''}>Valid</option>
+                        <option value="not valid" ${report.report_status !== 'valid' ? 'selected' : ''}>Not Valid</option>
+                    </select>
+                </td>
+                <td>${escapeHtml(report.added_by || '-')}</td>
+                <td>${escapeHtml(report.added_at || '-')}</td>
+                <td>
+                    <div class="action-icons">
+                        <button type="button" class="icon-action-btn save-edit-btn" title="${t('action.saveEditTitle')}" onclick="saveEditedReport(${index})">💾</button>
+                        <button type="button" class="icon-action-btn cancel-edit-btn" title="${t('action.cancelEditTitle')}" onclick="cancelEditReport()">✖️</button>
+                    </div>
+                </td>
+                <td>${delCell}</td>
+            </tr>`;
+            return;
+        }
+
+        // زرار التعديل: بيظهر بجانب حالة التقرير مباشرة، للأدمن ومشرف النظام بس
+        const editBtn = canEditReport
+            ? `<button type="button" class="edit-status-btn" title="${t('action.editTitle')}" onclick="startEditReport(${index})">✏️</button>`
+            : '';
+
         html += `<tr ${rowClass}>
             ${checkboxTd}
             <td>${escapeHtml(report.passport)}</td>
@@ -240,7 +277,7 @@ function renderTable(){
             <td>${escapeHtml(report.name_en)}</td>
             <td>${escapeHtml(report.phone)}</td>
             <td>${escapeHtml(report.report_date)}</td>
-            <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+            <td><span class="badge ${statusClass}">${statusLabel}</span>${editBtn}</td>
             <td>${escapeHtml(report.added_by || '-')}</td>
             <td>${escapeHtml(report.added_at || '-')}</td>
             <td>
@@ -330,6 +367,62 @@ async function deleteReport(index){
         showError(t('dashboard.deleteFailed'));
         reportsData = backup;
     }
+    await loadReports();
+}
+
+// ============================================================
+// تعديل تقرير موجود مباشرة من الجدول (للأدمن ومشرف النظام بس).
+// بدل ما نفتح فورم/صفحة تانية، الصف نفسه بيتحول لحقول قابلة للتعديل.
+// ============================================================
+function startEditReport(index){
+    if (session.role !== 'admin' && session.role !== 'supervisor') return;
+    duplicateIndex = -1;
+    editingIndex = index;
+    renderTable();
+}
+
+function cancelEditReport(){
+    editingIndex = -1;
+    renderTable();
+}
+
+async function saveEditedReport(index){
+    if (session.role !== 'admin' && session.role !== 'supervisor') return;
+
+    // الصف مرتب بنفس ترتيب reportsData دايمًا (renderTable بيعيد بناء الجدول بالكامل
+    // من الأول لحد آخر عنصر)، فـ index+1 بيدينا نفس الصف بالظبط بغض النظر عن الفلترة
+    // اللي بتخفي صفوف بس من غير ما تغيّر ترتيبها في الـ DOM.
+    const row = document.getElementById('reportsTable').rows[index + 1];
+    if (!row) return;
+
+    const passport = row.querySelector('.edit_passport').value.trim();
+    const name_ar = row.querySelector('.edit_name_ar').value.trim();
+    const name_en = row.querySelector('.edit_name_en').value.trim();
+    const phone = row.querySelector('.edit_phone').value.trim();
+    const report_date = row.querySelector('.edit_report_date').value;
+    const report_status = row.querySelector('.edit_report_status').value;
+
+    if (!passport || !name_ar || !name_en || !phone || !report_date) {
+        showToast(t('dashboard.editMissingFields'), true);
+        return;
+    }
+
+    const backup = reportsData.slice();
+    reportsData[index] = {
+        ...reportsData[index],
+        passport, name_ar, name_en, phone, report_date, report_status
+    };
+
+    const ok = await sheetsSaveData(reportsData);
+    if (!ok) {
+        reportsData = backup;
+        showToast(t('dashboard.editSaveFailed'), true);
+        renderTable();
+        return;
+    }
+
+    editingIndex = -1;
+    showToast(t('dashboard.editSaveSuccess'));
     await loadReports();
 }
 

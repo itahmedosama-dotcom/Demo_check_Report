@@ -162,6 +162,9 @@ ar: {
     'dashboard.duplicateError': '⚠️ آسف: التقرير موجود بالفعل لنفس الشخص في نفس التاريخ.',
     'dashboard.saveFailedAdd': '⚠️ حصل خطأ أثناء الحفظ في الشيت، لم تتم إضافة التقرير. تأكد من رابط ومفتاح Google Apps Script في js/config.js وحاول تاني.',
     'dashboard.idleLogoutAlert': 'تم تسجيل الخروج تلقائيًا بسبب عدم النشاط.',
+    'dashboard.editMissingFields': '⚠️ من فضلك املأ كل الحقول المطلوبة قبل الحفظ.',
+    'dashboard.editSaveFailed': '⚠️ حصل خطأ أثناء الحفظ في الشيت، لم يتم حفظ التعديل. جرّب تاني.',
+    'dashboard.editSaveSuccess': '✅ تم حفظ التعديل بنجاح.',
 
     'login.headerSubtitle': 'الدخول',
 
@@ -200,6 +203,9 @@ ar: {
     'qrmodal.hint': 'امسح الكود بكاميرا الموبايل عشان تفتح صفحة نتيجة التقرير مباشرة أونلاين، من غير ما تدخل بيانات يدويًا.',
     'action.qrTitle': 'عرض QR للعميل (فتح مباشر للنتيجة)',
     'action.waTitle': 'إرسال التقرير عبر واتساب',
+    'action.editTitle': 'تعديل بيانات التقرير',
+    'action.saveEditTitle': 'حفظ التعديل',
+    'action.cancelEditTitle': 'إلغاء التعديل',
 
     'qr.noPhone': '⚠️ لا يوجد رقم تليفون صحيح مسجّل لهذا التقرير.',
     'qr.genError': '⚠️ حصل خطأ أثناء توليد كود الـ QR. تأكد من اتصال الجهاز بالإنترنت وحاول تاني.',
@@ -558,6 +564,9 @@ en: {
     'dashboard.duplicateError': '⚠️ Sorry: this report already exists for the same person on the same date.',
     'dashboard.saveFailedAdd': '⚠️ An error occurred while saving to the sheet, the report was not added. Check the Google Apps Script URL/key in js/config.js and try again.',
     'dashboard.idleLogoutAlert': 'You were automatically logged out due to inactivity.',
+    'dashboard.editMissingFields': '⚠️ Please fill in all required fields before saving.',
+    'dashboard.editSaveFailed': '⚠️ An error occurred while saving to the sheet, the edit was not saved. Try again.',
+    'dashboard.editSaveSuccess': '✅ Edit saved successfully.',
 
     'login.headerSubtitle': 'Login',
 
@@ -595,6 +604,9 @@ en: {
     'qrmodal.close': 'Close',
     'qrmodal.hint': "Scan the code with a phone camera to open the report result page directly online, without entering any data manually.",
     'action.qrTitle': 'Show QR for the client (opens the result directly)',
+    'action.editTitle': 'Edit report data',
+    'action.saveEditTitle': 'Save edit',
+    'action.cancelEditTitle': 'Cancel edit',
     'action.waTitle': 'Send report via WhatsApp',
 
     'qr.noPhone': '⚠️ No valid phone number is registered for this report.',
