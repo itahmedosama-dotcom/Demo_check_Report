@@ -130,6 +130,10 @@
     </div>
 </div>
 
+<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:8px;display:flex;gap:16px;flex-wrap:wrap;">
+    <span><span style="display:inline-block;width:12px;height:12px;background:#e7f1fb;border:1px solid #c9dcf0;border-radius:3px;vertical-align:middle;"></span> <span data-i18n="dashboard.legendCsv">📄 تقرير مضاف عن طريق رفع CSV</span></span>
+    <span><span style="display:inline-block;width:12px;height:12px;background:#fff3cd;border:1px solid #ffe08a;border-radius:3px;vertical-align:middle;"></span> <span data-i18n="dashboard.legendDuplicate">تقرير مكرر</span></span>
+</div>
 <div class="table-wrap">
 <table id="reportsTable">
 <tr>
@@ -141,10 +145,7 @@
 <th data-i18n="th.status">حالة التقرير</th>
 <th data-i18n="th.user">المستخدم</th>
 <th data-i18n="th.addedAt">تاريخ ووقت الإضافة</th>
-<th data-i18n="th.verifyLinks">روابط التحقق (QR / واتساب)</th>
-<th data-i18n="th.print">طباعة</th>
-<th data-i18n="th.edit">تعديل</th>
-<th data-i18n="th.delete">حذف</th>
+<th data-i18n="th.actions">الإجراءات</th>
 </tr>
 </table>
 </div>
@@ -233,10 +234,9 @@ function renderTable(){
         <th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th>
         <th>${t('th.user')}</th><th>${t('th.addedAt')}</th>
-        <th>${t('th.verifyLinks')}</th><th>${t('th.print')}</th><th>${t('th.edit')}</th><th>${t('th.delete')}</th></tr>`;
+        <th>${t('th.actions')}</th></tr>`;
 
     reportsData.forEach((report, index) => {
-        const rowClass = duplicateIndex === index ? "class='duplicate-row'" : '';
         const canEditReport = (session.role === 'admin' || session.role === 'supervisor');
         const statusClass = report.report_status === 'valid' ? 'valid' : 'not-valid';
         const statusLabel = report.report_status === 'valid' ? 'Valid' : 'Not Valid';
@@ -273,27 +273,32 @@ function renderTable(){
                 </td>
                 <td>${escapeHtml(report.added_by || '-')}</td>
                 <td>${escapeHtml(report.added_at || '-')}</td>
-                <td>-</td>
-                <td>-</td>
-                <td>
+                <td class="actions-cell">
                     <div class="action-icons">
                         <button type="button" class="icon-action-btn save-edit-btn" title="${t('action.saveEditTitle')}" onclick="saveEditedReport(${index})">💾</button>
                         <button type="button" class="icon-action-btn cancel-edit-btn" title="${t('action.cancelEditTitle')}" onclick="cancelEditReport()">✖️</button>
+                        ${delCell !== '-' ? delCell : ''}
                     </div>
                 </td>
-                <td>${delCell}</td>
             </tr>`;
             return;
         }
 
-        // عمود التعديل: أيقونة مستقلة بجانب عمود الحذف، للأدمن ومشرف النظام بس
+        // عمود التعديل: أيقونة مستقلة جوه نفس عمود الإجراءات المجمّع، للأدمن ومشرف النظام بس
         const editCell = canEditReport
             ? `<button type="button" class="icon-action-btn edit-action-btn" title="${t('action.editTitle')}" onclick="startEditReport(${index})">✏️</button>`
-            : '-';
+            : '';
 
-        html += `<tr ${rowClass}>
+        // التقرير ده مرفوع من ملف CSV؟ (مش داخل يدوي من الفورم) — بنميّزه بلون مختلف
+        const isCsvSource = report.source === 'csv';
+        const combinedRowClass = duplicateIndex === index
+            ? "class='duplicate-row'"
+            : (isCsvSource ? "class='csv-source-row'" : '');
+        const sourceMark = isCsvSource ? ` <span title="${t('dashboard.csvSourceTitle')}" style="cursor:help;">📄</span>` : '';
+
+        html += `<tr ${combinedRowClass}>
             ${checkboxTd}
-            <td>${escapeHtml(report.passport)}</td>
+            <td>${escapeHtml(report.passport)}${sourceMark}</td>
             <td>${escapeHtml(report.name_ar)}</td>
             <td>${escapeHtml(report.name_en)}</td>
             <td>${escapeHtml(report.phone)}</td>
@@ -301,17 +306,17 @@ function renderTable(){
             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
             <td>${escapeHtml(report.added_by || '-')}</td>
             <td>${escapeHtml(report.added_at || '-')}</td>
-            <td>
+            <td class="actions-cell">
                 <div class="action-icons">
                     <button type="button" class="icon-action-btn qr-action-btn" title="${t('action.qrTitle')}" onclick="showReportQr(reportsData[${index}])">📱</button>
                     <button type="button" class="icon-action-btn wa-action-btn" title="${t('action.waTitle')}" onclick="sendReportViaWhatsApp(reportsData[${index}])">💬</button>
                     ${waAutoBtn}
                     ${smsAutoBtn}
+                    ${printCell}
+                    ${editCell}
+                    ${delCell !== '-' ? delCell : ''}
                 </div>
             </td>
-            <td>${printCell}</td>
-            <td>${editCell}</td>
-            <td>${delCell}</td>
         </tr>`;
     });
     table.innerHTML = html;
@@ -476,7 +481,8 @@ document.getElementById('reportForm').addEventListener('submit', async function(
         report_date,
         report_status: document.getElementById('report_status').value,
         added_by: session.username,
-        added_at: new Date().toISOString().slice(0,19).replace('T',' ')
+        added_at: new Date().toISOString().slice(0,19).replace('T',' '),
+        source: 'manual'
     };
 
     reportsData.push(newReport);

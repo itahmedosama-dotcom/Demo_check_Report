@@ -42,6 +42,7 @@
 
 <div id="previewSection" style="display:none;">
 <h3 data-i18n="csv.previewTitle">معاينة البيانات قبل الإضافة</h3>
+<div id="dupBanner" style="display:none;background:#fff3cd;color:#7a5b00;border:1px solid #ffe08a;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13.5px;font-weight:600;"></div>
 <div class="table-wrap">
 <table id="previewTable">
 <tr>
@@ -52,6 +53,7 @@
 </div>
 
 <button id="confirmUploadBtn" class="confirm-btn" data-i18n="csv.confirmBtn">✅ تأكيد إضافة البيانات</button>
+<button id="clearUploadBtn" type="button" class="delete-btn" style="margin-inline-start:10px;" data-i18n="csv.clearBtn">🗑️ مسح الملف وابدأ من جديد</button>
 </div>
 
 <br><br>
@@ -66,7 +68,7 @@
 <script src="js/footer.js"></script>
 <script src="js/pwa.js"></script>
 <script>
-requireLogin();
+const session = requireLogin();
 
 let csvData = JSON.parse(sessionStorage.getItem('nsh_csv_data') || '[]');
 
@@ -117,19 +119,133 @@ function decodeCsvBuffer(buffer){
     }
 }
 
+// ============================================================
+// اكتشاف التكرار: سطر بيتحسب مكرر لو رقم الجوال + تاريخ الفحص + حالة الفحص
+// متطابقين، وبعدين واحد من الاتنين تحقق:
+//   1) نفس الاسم (عربي أو إنجليزي)، أو
+//   2) نفس رقم الباسبور/الإقامة — ده معيار مستقل تمامًا عن الاسم، عشان
+//      يمسك الحالة اللي يتغير فيها الاسم شوية (كتابة مختلفة/خطأ إملائي)
+//      بس الشخص هو نفسه (نفس الباسبور).
+// بيتفحص التكرار داخل نفس الملف (بين سطور CSV بعضها) وكمان مقارنة ببيانات
+// الشيت الموجودة بالفعل (existingReportsData).
+// ============================================================
+let existingReportsData = null; // null = لسه ما اتحمّلتش من الشيت
+
+function normStr(s){
+    return String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// بيرجع true لو الاسم (عربي أو إنجليزي) متطابق بين السطرين، طالما مش فاضي
+function sameName(a, b){
+    const an = normStr(a.name_ar), bn = normStr(b.name_ar);
+    if (an !== '' && an === bn) return true;
+    const ae = normStr(a.name_en), be = normStr(b.name_en);
+    if (ae !== '' && ae === be) return true;
+    return false;
+}
+
+// بيرجع true لو رقم الباسبور/الإقامة متطابق بين السطرين، طالما مش فاضي
+function samePassport(a, b){
+    const pa = normStr(a.passport), pb = normStr(b.passport);
+    return pa !== '' && pa === pb;
+}
+
+function isSameRecord(a, b){
+    const phoneA = normalizeSaudiPhone(String(a.phone ?? '').trim());
+    const phoneB = normalizeSaudiPhone(String(b.phone ?? '').trim());
+    if (!phoneA || phoneA !== phoneB) return false;
+    if (String(a.report_date ?? '').trim() !== String(b.report_date ?? '').trim()) return false;
+    if (normStr(a.report_status) !== normStr(b.report_status)) return false;
+    return sameName(a, b) || samePassport(a, b);
+}
+
+// بيرجع مصفوفة بأسماء الحقول اللي فعلاً مختلفة بين سطرين (name/phone/date/status)
+// — دي اللي بتتظهر في الـ tooltip عشان توضح بالظبط فين الاختلاف
+function fieldDiffs(a, b){
+    const diffs = [];
+    if (!sameName(a, b)) diffs.push('name');
+    const phoneA = normalizeSaudiPhone(String(a.phone ?? '').trim());
+    const phoneB = normalizeSaudiPhone(String(b.phone ?? '').trim());
+    if (phoneA !== phoneB) diffs.push('phone');
+    if (String(a.report_date ?? '').trim() !== String(b.report_date ?? '').trim()) diffs.push('date');
+    if (normStr(a.report_status) !== normStr(b.report_status)) diffs.push('status');
+    return diffs;
+}
+
+function diffFieldLabel(field){
+    const map = { name: t('csv.fieldName'), phone: t('csv.fieldPhone'), date: t('csv.fieldDate'), status: t('csv.fieldStatus') };
+    return map[field] || field;
+}
+
+// بيرجع مصفوفة موازية لـ csvData: {inFile, inSheet, conflictDiffs} لكل سطر
+// conflictDiffs = null لو مفيش، أو مصفوفة أسماء الحقول المختلفة لو السطر
+// بيشارك نفس رقم الباسبور مع سطر تاني (ملف أو شيت) لكن مش تكرار كامل —
+// يعني نفس الشخص بس ببيانات متضاربة (زي حالة فحص مختلفة لنفس التاريخ)
+function computeDuplicates(){
+    return csvData.map((row, i) => {
+        const inFile = csvData.some((other, j) => j !== i && isSameRecord(row, other));
+        const inSheet = !!(existingReportsData && existingReportsData.some(r => isSameRecord(row, r)));
+
+        let conflictDiffs = null;
+        const passport = normStr(row.passport);
+        if (passport) {
+            const conflictOther = csvData.find((other, j) => j !== i && normStr(other.passport) === passport && !isSameRecord(row, other));
+            const conflictSheet = !conflictOther && existingReportsData
+                ? existingReportsData.find(r => normStr(r.passport) === passport && !isSameRecord(row, r))
+                : null;
+            const other = conflictOther || conflictSheet;
+            if (other) conflictDiffs = fieldDiffs(row, other);
+        }
+        return { inFile, inSheet, conflictDiffs };
+    });
+}
+
+
 function renderPreview(){
     const section = document.getElementById('previewSection');
+    const banner = document.getElementById('dupBanner');
     if (!csvData.length) {
         section.style.display = 'none';
         return;
     }
     section.style.display = 'block';
+    const dups = computeDuplicates();
+    const dupCount = dups.filter(d => d.inFile || d.inSheet).length;
+    const conflictCount = dups.filter(d => !(d.inFile || d.inSheet) && d.conflictDiffs && d.conflictDiffs.length).length;
+
+    const bannerLines = [];
+    if (dupCount > 0) bannerLines.push(t('csv.dupBannerTitle', { n: dupCount }));
+    if (conflictCount > 0) bannerLines.push(t('csv.dupBannerConflict', { n: conflictCount }));
+    if (bannerLines.length) {
+        banner.style.display = 'block';
+        banner.innerHTML = bannerLines.map(l => escapeHtml(l)).join('<br>');
+    } else {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+    }
+
     const table = document.getElementById('previewTable');
     let html = `<tr><th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th><th>${t('th.delete')}</th></tr>`;
     csvData.forEach((row, index) => {
-        html += `<tr>
-            <td>${escapeHtml(row.passport)}</td>
+        const d = dups[index];
+        const isDup = d.inFile || d.inSheet;
+        const isConflict = !isDup && d.conflictDiffs && d.conflictDiffs.length;
+        let rowClass = '';
+        let dupTag = '';
+        if (isDup) {
+            rowClass = ' class="duplicate-row"';
+            if (d.inFile && d.inSheet) dupTag = t('csv.dupTagBoth');
+            else if (d.inSheet) dupTag = t('csv.dupTagSheet');
+            else dupTag = t('csv.dupTagFile');
+        } else if (isConflict) {
+            rowClass = ' class="passport-conflict-row"';
+            const fieldsText = d.conflictDiffs.map(diffFieldLabel).join('، ');
+            dupTag = t('csv.dupTagConflict', { fields: fieldsText });
+        }
+        const dupMark = (isDup || isConflict) ? ` <span title="${escapeHtml(dupTag)}" style="cursor:help;">⚠️</span>` : '';
+        html += `<tr${rowClass}>
+            <td>${escapeHtml(row.passport)}${dupMark}</td>
             <td>${escapeHtml(row.name_ar)}</td>
             <td>${escapeHtml(row.name_en)}</td>
             <td>${escapeHtml(row.phone)}</td>
@@ -148,13 +264,28 @@ function deleteCsvRow(index){
     renderPreview();
 }
 
+// بيمسح كل بيانات الملف اللي اتحمّلت في المعاينة (من غير ما يلمس أي حاجة
+// اتضافت فعليًا في الشيت قبل كده)، عشان المستخدم يرفع ملف تاني من الأول
+// بدل ما يضطر يحذف كل سطر لوحده أو يعمل Refresh للصفحة يدويًا
+function clearCsvUpload(){
+    if (csvData.length && !confirm(t('csv.confirmClearAll'))) return;
+    csvData = [];
+    sessionStorage.removeItem('nsh_csv_data');
+    const fileInput = document.getElementById('csv_file');
+    if (fileInput) fileInput.value = '';
+    renderPreview();
+    showToast(t('csv.clearedSuccess'));
+}
+document.getElementById('clearUploadBtn').addEventListener('click', clearCsvUpload);
+
+
 document.getElementById('uploadForm').addEventListener('submit', function(e){
     e.preventDefault();
     const file = document.getElementById('csv_file').files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(evt){
+    reader.onload = async function(evt){
         const text = decodeCsvBuffer(evt.target.result);
         const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
         csvData = [];
@@ -171,6 +302,12 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
             });
         });
         sessionStorage.setItem('nsh_csv_data', JSON.stringify(csvData));
+
+        // بنجيب بيانات الشيت الحالية عشان نقارن عليها التكرار (اسم+جوال+تاريخ+حالة)
+        // قبل ما نعرض المعاينة، عشان الهايلايت يظهر من أول لحظة
+        showToast(t('csv.checkingDuplicates'));
+        existingReportsData = await sheetsGetData();
+
         renderPreview();
         showToast(t('csv.extractSuccess', { n: csvData.length }));
     };
@@ -180,8 +317,39 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
 });
 
 document.getElementById('confirmUploadBtn').addEventListener('click', async function(){
+    // بنعيد تحميل بيانات الشيت وقت التأكيد نفسه (مش بس وقت رفع الملف)، عشان
+    // لو حد تاني ضاف تقارير في الفترة ما بين المعاينة والتأكيد، نكتشف التكرار
+    // الجديد ده كمان قبل ما نحفظ فوق بياناته.
     const data = await sheetsGetData();
-    const merged = data.concat(csvData);
+    existingReportsData = data;
+    const dups = computeDuplicates();
+    const dupSheetCount = dups.filter(d => d.inSheet).length;
+    const dupFileOnlyCount = dups.filter(d => d.inFile && !d.inSheet).length;
+    const totalDup = dupSheetCount + dupFileOnlyCount;
+
+    if (totalDup > 0) {
+        renderPreview();
+        // ملحوظة مهمة: النظام هنا بيضيف (append) السطور الجديدة فوق بيانات
+        // الشيت الحالية — مفيش أي "تحديث/دمج" بيحصل للسطر القديم. يعني لو
+        // فيه سطر مطابق موجود بالفعل في الشيت وأكدت الرفع، السطر القديم
+        // هيفضل زي ما هو والسطر الجديد هيتضاف بجانبه كنسخة تانية منفصلة
+        // (تكرار فعلي في الشيت نفسه)، ومش هيتم استبدال أو تعديل القديم.
+        const proceed = confirm(t('csv.dupConfirmProceed', { n: totalDup }));
+        if (!proceed) return;
+    }
+
+    // نضيف مين رفع الملف (added_by) ومتى فعليًا اتحفظ (added_at)، وكمان علامة
+    // source:'csv' عشان داشبورد التقارير يقدر يميّزها بلون مختلف عن الإدخال
+    // اليدوي — بالظبط زي البيانات اللي بتتضاف يدويًا من فورم الداشبورد.
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const stampedCsvData = csvData.map(row => ({
+        ...row,
+        added_by: session.username,
+        added_at: now,
+        source: 'csv'
+    }));
+
+    const merged = data.concat(stampedCsvData);
     const ok = await sheetsSaveData(merged);
     if (ok) {
         csvData = [];
@@ -194,6 +362,9 @@ document.getElementById('confirmUploadBtn').addEventListener('click', async func
 });
 
 renderPreview();
+if (csvData.length) {
+    sheetsGetData().then(data => { existingReportsData = data; renderPreview(); });
+}
 window.addEventListener('nsh:langchange', renderPreview);
 </script>
 

@@ -249,6 +249,8 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
 
 .user-badge { font-weight: 700; margin-bottom: 10px; color: var(--text-muted); }
 .duplicate-row { background-color: #fff3cd !important; }
+.passport-conflict-row { background-color: #ffe2cc !important; }
+.csv-source-row { background-color: #e7f1fb !important; }
 #timer { position: fixed; bottom: 14px; right: 14px; font-weight: 700; background: #fff; color: var(--text); padding: 8px 14px; border-radius: 30px; z-index: 999; box-shadow: var(--shadow); font-size: 13px; border: 1px solid var(--border); }
 /* ---------- Print stylesheet ----------
    بيشتغل مع أي نوع محتوى (جداول، كروت نتائج، داشبورد تحليلي) —
@@ -704,16 +706,19 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
     100%{ transform: scale(1) rotate(0); }
 }
 
-/* ---------- Per-row action icons (QR verify / WhatsApp send) ---------- */
-.action-icons{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+/* ---------- Per-row action icons (QR verify / WhatsApp send / print / edit / delete) ----------
+   كل الأيقونات دلوقتي مجمّعة في عمود واحد ("الإجراءات") بدل ما تتوزع على أعمدة
+   منفصلة، عشان نقلل عرض الجدول الكلي ونقلل الحاجة للتمرير الأفقي شمال/يمين. */
+.action-icons{ display:flex; gap:4px; justify-content:center; align-items:center; flex-wrap:wrap; max-width: 190px; margin: 0 auto; }
+.actions-cell{ padding-left:6px !important; padding-right:6px !important; }
 .icon-action-btn{
-    min-height: 34px;
-    width: 34px;
+    min-height: 30px;
+    width: 30px;
     padding: 0;
     margin-top: 0;
     border-radius: 50%;
     border: none;
-    font-size: 16px;
+    font-size: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
