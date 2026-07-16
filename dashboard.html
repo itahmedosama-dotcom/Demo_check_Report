@@ -144,11 +144,12 @@
 <div class="table-wrap">
 <table id="reportsTable">
 <colgroup>
-<col class="col-check"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
+<col class="col-check"><col class="col-num"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
 <col class="col-phone"><col class="col-date"><col class="col-status"><col class="col-user">
 <col class="col-added"><col class="col-actions">
 </colgroup>
 <tr>
+<th data-i18n="th.rowNum">م</th>
 <th data-i18n="th.passport">رقم الباسبور</th>
 <th data-i18n="th.nameAr">الاسم بالعربي</th>
 <th data-i18n="th.nameEn">English Name</th>
@@ -264,15 +265,20 @@ function isDuplicateRecord(a, b){
 }
 
 // بيرجع مصفوفة موازية لـ reportsData: null لو الصف مش مكرر، أو
-// {count, matchType} لو مكرر (matchType: 'name' / 'passport' / 'both')
+// {rowNumbers, matchType} لو مكرر (rowNumbers: أرقام السطور اللي اتكرر
+// معاها — نفس رقم عمود "م" المعروض في الجدول — matchType: 'name' / 'passport' / 'both')
 function computeDuplicateFlags(){
     return reportsData.map((row, i) => {
-        const matches = reportsData.filter((other, j) => j !== i && isDuplicateRecord(row, other));
+        const matches = reportsData
+            .map((other, j) => ({ other, j }))
+            .filter(({ other, j }) => j !== i && isDuplicateRecord(row, other));
         if (!matches.length) return null;
-        const byName = matches.some(other => dupSameName(row, other));
-        const byPassport = matches.some(other => dupSamePassport(row, other));
+        const byName = matches.some(({ other }) => dupSameName(row, other));
+        const byPassport = matches.some(({ other }) => dupSamePassport(row, other));
         const matchType = (byName && byPassport) ? 'both' : (byPassport ? 'passport' : 'name');
-        return { count: matches.length, matchType };
+        // رقم السطر المعروض للمستخدم بيبدأ من 1 (نفس عمود "م")، مش الفهرس الداخلي (j) اللي بيبدأ من 0
+        const rowNumbers = matches.map(({ j }) => j + 1);
+        return { rowNumbers, matchType };
     });
 }
 
@@ -280,7 +286,10 @@ function dupReasonText(flag){
     const matchLabel = flag.matchType === 'both' ? t('dashboard.dupMatchBoth')
         : flag.matchType === 'passport' ? t('dashboard.dupMatchPassport')
         : t('dashboard.dupMatchName');
-    return t('dashboard.dupReason', { n: flag.count, match: matchLabel });
+    const rowsText = flag.rowNumbers.length > 1
+        ? t('dashboard.dupRowsMultiple', { rows: flag.rowNumbers.join('، ') })
+        : t('dashboard.dupRowsSingle', { rows: flag.rowNumbers[0] });
+    return t('dashboard.dupReason', { rows: rowsText, match: matchLabel });
 }
 
 // عند الضغط على أيقونة ⚠️ (مفيد بالذات على الموبايل، لأن title tooltip
@@ -302,12 +311,13 @@ function renderTable(){
     const table = document.getElementById('reportsTable');
     const checkboxTh = showSelectionColumn ? `<th><input type="checkbox" id="selectAllCheckbox"></th>` : '';
     let html = `<colgroup>
-        <col class="col-check"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
+        <col class="col-check"><col class="col-num"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
         <col class="col-phone"><col class="col-date"><col class="col-status"><col class="col-user">
         <col class="col-added"><col class="col-actions">
         </colgroup>
         <tr>
         ${checkboxTh}
+        <th title="${t('th.rowNumTitle')}">${t('th.rowNum')}</th>
         <th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th>
         <th>${t('th.user')}</th><th>${t('th.addedAt')}</th>
@@ -344,6 +354,7 @@ function renderTable(){
         if (canEditReport && editingIndex === index) {
             html += `<tr class="editing-row">
                 ${checkboxTd}
+                <td>${index + 1}</td>
                 <td><input type="text" class="edit-field edit_passport" value="${escapeHtml(report.passport)}"></td>
                 <td><input type="text" class="edit-field edit_name_ar" value="${escapeHtml(report.name_ar)}"></td>
                 <td><input type="text" class="edit-field edit_name_en" value="${escapeHtml(report.name_en)}"></td>
@@ -386,6 +397,7 @@ function renderTable(){
 
         html += `<tr ${combinedRowClass}>
             ${checkboxTd}
+            <td>${index + 1}</td>
             <td>${escapeHtml(report.passport)}${sourceMark}${dupMark}</td>
             <td>${escapeHtml(report.name_ar)}</td>
             <td>${escapeHtml(report.name_en)}</td>
@@ -597,7 +609,8 @@ function filterTable() {
     rows.forEach(function(row, index) {
         if (index === 0) return;
         const text = row.textContent.toLowerCase();
-        const colOffset = showSelectionColumn ? 1 : 0;
+        // +1 لعمود التحديد (لو ظاهر) و+1 تاني ثابت لعمود "م" (رقم السطر) اللي بيتضاف دايمًا قبل رقم الباسبور
+        const colOffset = (showSelectionColumn ? 1 : 0) + 1;
         const dateCell = row.cells[4 + colOffset].textContent.trim();
         const userCell = row.cells[6 + colOffset].textContent.trim();
         // الصف بيطابق reportsData بنفس الترتيب دايمًا (index - 1)، بغض النظر

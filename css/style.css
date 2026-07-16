@@ -261,8 +261,9 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
    فالجدول كله كان "بيتلغبط"/يهتز وقت الدخول والخروج من وضع التعديل.
    الحل: عرض كل عمود بيبقى ثابت دايمًا (مش بيتغيّر بين وضع العرض والتعديل)،
    والتمرير الأفقي (.table-wrap{overflow-x:auto}) بيتكفّل بأي محتوى أطول. */
-#reportsTable{ table-layout: fixed; min-width: 1220px; }
+#reportsTable{ table-layout: fixed; min-width: 1256px; }
 #reportsTable col.col-check{ width: 34px; }
+#reportsTable col.col-num{ width: 36px; }
 #reportsTable col.col-passport{ width: 120px; }
 #reportsTable col.col-name-ar{ width: 130px; }
 #reportsTable col.col-name-en{ width: 130px; }
