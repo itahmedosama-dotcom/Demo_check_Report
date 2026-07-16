@@ -31,6 +31,9 @@
 
 
 <a href="csv_example.csv" class="download-btn" download data-i18n="csv.downloadTemplate">📥 تحميل نموذج CSV</a>
+<p style="font-size:12.5px;color:var(--text-muted);margin-top:8px;" data-i18n="csv.phoneHint">
+    ملحوظة: لو فتحت الملف في اكسيل وكتبت رقم موبايل زي 0501234567، اكسيل ممكن يشيل الصفر اللي في الأول تلقائيًا (يبقى 501234567) — النظام بيرجّعه تلقائيًا وقت الرفع لو الرقم موبايل سعودي عادي (يبدأ بـ 5 وطوله 9 أرقام).
+</p>
 
 <form id="uploadForm" style="margin-top:15px;">
     <input type="file" id="csv_file" accept=".csv" required>
@@ -81,6 +84,39 @@ function parseCSVLine(line){
     return result;
 }
 
+// ============================================================
+// اكتشاف ترميز ملف الـ CSV تلقائيًا.
+// المشكلة اللي بتصلح: لما حد يصدّر/يحفظ ملف CSV من Excel على ويندوز عربي
+// باختيار "CSV (Comma delimited)" العادي (مش "CSV UTF-8")، بيكسف الملف
+// بترميز Windows-1256 مش UTF-8. لو قرينا الملف ده كـ UTF-8 زي الأول،
+// كل حرف عربي بيتحول لرمز غريب (�) لأن البايتات مش متوافقة مع UTF-8.
+// الحل: نقرأ الملف كـ bytes خام، ونجرب:
+//   1) لو فيه UTF-8 BOM في الأول → نشيله ونقرأه كـ UTF-8.
+//   2) لو من غيره، نجرب فك التشفير الصارم UTF-8 (fatal:true) - لو الملف
+//      فعلاً UTF-8 من غير BOM (زي ملفات محررة بمحرر نصوص عادي) هيعدي كده.
+//   3) لو فشل (يبقى مش UTF-8 فعلاً) → نرجع لـ Windows-1256، وهو الترميج
+//      الأكثر شيوعًا لملفات Excel العربية على ويندوز.
+// ============================================================
+function decodeCsvBuffer(buffer){
+    const bytes = new Uint8Array(buffer);
+
+    // UTF-8 BOM: EF BB BF
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        return new TextDecoder('utf-8').decode(bytes.subarray(3));
+    }
+
+    try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (e) {
+        try {
+            return new TextDecoder('windows-1256').decode(bytes);
+        } catch (e2) {
+            // آخر حل احتياطي لو المتصفح مش داعم windows-1256 لأي سبب
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+    }
+}
+
 function renderPreview(){
     const section = document.getElementById('previewSection');
     if (!csvData.length) {
@@ -119,7 +155,8 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
 
     const reader = new FileReader();
     reader.onload = function(evt){
-        const lines = evt.target.result.split(/\r?\n/).filter(l => l.trim() !== '');
+        const text = decodeCsvBuffer(evt.target.result);
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
         csvData = [];
         lines.forEach((line, i) => {
             if (i === 0) return; // تجاهل صف العناوين
@@ -128,7 +165,7 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
                 passport: row[0] || '',
                 name_ar: row[1] || '',
                 name_en: row[2] || '',
-                phone: row[3] || '',
+                phone: normalizeSaudiPhone(row[3] || ''),
                 report_date: row[4] || '',
                 report_status: row[5] || 'valid'
             });
@@ -137,7 +174,9 @@ document.getElementById('uploadForm').addEventListener('submit', function(e){
         renderPreview();
         showToast(t('csv.extractSuccess', { n: csvData.length }));
     };
-    reader.readAsText(file, 'UTF-8');
+    // بنقرأ الملف كـ bytes خام (مش كنص جاهز) عشان نقدر نكتشف الترميز الصحيح بنفسنا -
+    // شوف decodeCsvBuffer() تحت لتفاصيل السبب.
+    reader.readAsArrayBuffer(file);
 });
 
 document.getElementById('confirmUploadBtn').addEventListener('click', async function(){

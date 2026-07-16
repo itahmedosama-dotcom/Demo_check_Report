@@ -96,6 +96,17 @@
 
 <h3 data-i18n="dashboard.allReportsTitle">جميع التقارير</h3>
 
+<div class="toolbar" id="printReportsToolbar">
+    <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="print-btn" id="printAllBtn" data-i18n="dashboard.printAll">🖨️ طباعة الكل</button>
+    </div>
+    <div class="field">
+        <label>&nbsp;</label>
+        <button type="button" class="print-btn" id="printSelectedBtn" data-i18n="dashboard.printSelected">🖨️ طباعة المحدد</button>
+    </div>
+</div>
+
 <div class="toolbar" id="bulkDeleteToolbar" style="display:none;">
     <div class="field">
         <label>&nbsp;</label>
@@ -131,10 +142,14 @@
 <th data-i18n="th.user">المستخدم</th>
 <th data-i18n="th.addedAt">تاريخ ووقت الإضافة</th>
 <th data-i18n="th.verifyLinks">روابط التحقق (QR / واتساب)</th>
+<th data-i18n="th.print">طباعة</th>
+<th data-i18n="th.edit">تعديل</th>
 <th data-i18n="th.delete">حذف</th>
 </tr>
 </table>
 </div>
+
+<div id="printArea"></div>
 
 </div>
 
@@ -185,6 +200,9 @@ const isAdmin = session.role === 'admin';
 if (isAdmin) {
     document.getElementById('bulkDeleteToolbar').style.display = 'flex';
 }
+// عمود التحديد (checkbox) متاح لكل المستخدمين عشان أي حد يقدر يختار تقارير
+// للطباعة، مش بس الأدمن (اللي بيستخدم نفس التحديد للحذف الجماعي كمان)
+const showSelectionColumn = true;
 let selectedRowIndexes = new Set();
 // إعدادات مزوّدي SMS/واتساب الفعليين (بتتحمّل مرة واحدة عشان نعرف نظهر
 // أزرار الإرسال التلقائي بس لو المزود متفعّل فعلاً من صفحة الإعدادات)
@@ -209,13 +227,13 @@ function renderTable(){
     userFilter.value = currentFilterVal;
 
     const table = document.getElementById('reportsTable');
-    const checkboxTh = isAdmin ? `<th><input type="checkbox" id="selectAllCheckbox"></th>` : '';
+    const checkboxTh = showSelectionColumn ? `<th><input type="checkbox" id="selectAllCheckbox"></th>` : '';
     let html = `<tr>
         ${checkboxTh}
         <th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th>
         <th>${t('th.user')}</th><th>${t('th.addedAt')}</th>
-        <th>${t('th.verifyLinks')}</th><th>${t('th.delete')}</th></tr>`;
+        <th>${t('th.verifyLinks')}</th><th>${t('th.print')}</th><th>${t('th.edit')}</th><th>${t('th.delete')}</th></tr>`;
 
     reportsData.forEach((report, index) => {
         const rowClass = duplicateIndex === index ? "class='duplicate-row'" : '';
@@ -223,11 +241,12 @@ function renderTable(){
         const statusClass = report.report_status === 'valid' ? 'valid' : 'not-valid';
         const statusLabel = report.report_status === 'valid' ? 'Valid' : 'Not Valid';
         const delCell = (session.role === 'admin' || session.role === 'supervisor')
-            ? `<a href="#" onclick="deleteReport(${index}); return false;" style="color:#e2483d;font-weight:bold;text-decoration:none;">${t('th.delete')}</a>`
+            ? `<button type="button" class="icon-action-btn delete-action-btn" title="${t('th.delete')}" onclick="deleteReport(${index})">🗑️</button>`
             : '-';
-        const checkboxTd = isAdmin
+        const checkboxTd = showSelectionColumn
             ? `<td><input type="checkbox" class="rowSelectCheckbox" data-index="${index}" ${selectedRowIndexes.has(index) ? 'checked' : ''}></td>`
             : '';
+        const printCell = `<button type="button" class="icon-action-btn print-action-btn" title="${t('action.printTitle')}" onclick="printReportsList([reportsData[${index}]])">🖨️</button>`;
         const waAutoEnabled = providerSettings.wa_api_enabled === 'true' || providerSettings.wa_api_enabled === true;
         const smsAutoEnabled = providerSettings.sms_enabled === 'true' || providerSettings.sms_enabled === true;
         const waAutoBtn = waAutoEnabled
@@ -254,6 +273,8 @@ function renderTable(){
                 </td>
                 <td>${escapeHtml(report.added_by || '-')}</td>
                 <td>${escapeHtml(report.added_at || '-')}</td>
+                <td>-</td>
+                <td>-</td>
                 <td>
                     <div class="action-icons">
                         <button type="button" class="icon-action-btn save-edit-btn" title="${t('action.saveEditTitle')}" onclick="saveEditedReport(${index})">💾</button>
@@ -265,10 +286,10 @@ function renderTable(){
             return;
         }
 
-        // زرار التعديل: بيظهر بجانب حالة التقرير مباشرة، للأدمن ومشرف النظام بس
-        const editBtn = canEditReport
-            ? `<button type="button" class="edit-status-btn" title="${t('action.editTitle')}" onclick="startEditReport(${index})">✏️</button>`
-            : '';
+        // عمود التعديل: أيقونة مستقلة بجانب عمود الحذف، للأدمن ومشرف النظام بس
+        const editCell = canEditReport
+            ? `<button type="button" class="icon-action-btn edit-action-btn" title="${t('action.editTitle')}" onclick="startEditReport(${index})">✏️</button>`
+            : '-';
 
         html += `<tr ${rowClass}>
             ${checkboxTd}
@@ -277,7 +298,7 @@ function renderTable(){
             <td>${escapeHtml(report.name_en)}</td>
             <td>${escapeHtml(report.phone)}</td>
             <td>${escapeHtml(report.report_date)}</td>
-            <td><span class="badge ${statusClass}">${statusLabel}</span>${editBtn}</td>
+            <td><span class="badge ${statusClass}">${statusLabel}</span></td>
             <td>${escapeHtml(report.added_by || '-')}</td>
             <td>${escapeHtml(report.added_at || '-')}</td>
             <td>
@@ -288,6 +309,8 @@ function renderTable(){
                     ${smsAutoBtn}
                 </div>
             </td>
+            <td>${printCell}</td>
+            <td>${editCell}</td>
             <td>${delCell}</td>
         </tr>`;
     });
@@ -398,7 +421,7 @@ async function saveEditedReport(index){
     const passport = row.querySelector('.edit_passport').value.trim();
     const name_ar = row.querySelector('.edit_name_ar').value.trim();
     const name_en = row.querySelector('.edit_name_en').value.trim();
-    const phone = row.querySelector('.edit_phone').value.trim();
+    const phone = normalizeSaudiPhone(row.querySelector('.edit_phone').value.trim());
     const report_date = row.querySelector('.edit_report_date').value;
     const report_status = row.querySelector('.edit_report_status').value;
 
@@ -449,7 +472,7 @@ document.getElementById('reportForm').addEventListener('submit', async function(
         passport,
         name_ar,
         name_en: document.getElementById('name_en').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
+        phone: normalizeSaudiPhone(document.getElementById('phone').value.trim()),
         report_date,
         report_status: document.getElementById('report_status').value,
         added_by: session.username,
@@ -479,8 +502,9 @@ function filterTable() {
     rows.forEach(function(row, index) {
         if (index === 0) return;
         const text = row.textContent.toLowerCase();
-        const dateCell = row.cells[4].textContent.trim();
-        const userCell = row.cells[6].textContent.trim();
+        const colOffset = showSelectionColumn ? 1 : 0;
+        const dateCell = row.cells[4 + colOffset].textContent.trim();
+        const userCell = row.cells[6 + colOffset].textContent.trim();
         let show = true;
         if (keyword && !text.includes(keyword)) show = false;
         if (fromDate && dateCell < fromDate) show = false;
@@ -510,6 +534,137 @@ function exportTableToExcel(){
         { key: 'added_at', label: t('th.addedAt') }
     ], 'reports.xls');
 }
+
+// ============================================================
+// طباعة تقرير واحد أو أكثر بنفس شكل "كروت النتائج" اللي في صفحة
+// report_result.html (دايرة صالح/غير صالح + بيانات + QR + توقيعات).
+// بنبني الكروت جوه #printArea المخفي، ووقت الطباعة بس (body.printing-reports)
+// بيتفعّل CSS بيخفي كل حاجة تانية في الصفحة ويظهر الكروت دي.
+// ============================================================
+function confettiHtml(){
+    const colors = ['#185fa5','#042c53','#85b7eb','#6292c2','#ffd166'];
+    let html = '';
+    for (let i = 0; i < 16; i++){
+        const angle = (Math.PI * 2 * i) / 16;
+        const dist = 55 + Math.random() * 35;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const rot = Math.floor(Math.random() * 360);
+        const color = colors[i % colors.length];
+        const delay = (Math.random() * 0.15).toFixed(2);
+        html += `<span class="confetti-piece" style="--dx:${dx}px; --dy:${dy}px; --rot:${rot}deg; background:${color}; animation-delay:${delay}s;"></span>`;
+    }
+    return html;
+}
+
+async function printReportsList(list){
+    const reports = (list || []).filter(Boolean);
+    if (!reports.length) {
+        showToast(t('bulk.noneSelected'), true);
+        return;
+    }
+
+    const settings = providerSettings || {};
+    const currentOrgName = window.__nshCompanyName || t('common.orgName');
+    const printHeader = `
+        <div class="print-logo-header">
+            <img src="${settings.logo_data || 'img/logo.jpg'}" alt="${escapeHtml(currentOrgName)}" style="height:40px;">
+            <strong>${escapeHtml(currentOrgName)}</strong>
+            <span class="electronic-report-badge">${t('result.electronicBadge')}</span>
+        </div>`;
+
+    const deptSignature = settings.dept_signature || '';
+    const centerSignature = settings.center_signature || '';
+    let signaturesHtml = '';
+    if (deptSignature || centerSignature) {
+        signaturesHtml = `<div class="report-signatures-wrap">`;
+        if (deptSignature) {
+            signaturesHtml += `
+            <div class="signature-box">
+                <p class="signature-role-label">${t('result.deptSignatureLabel')}</p>
+                <img src="${deptSignature}" alt="${t('result.deptSignatureLabel')}" class="signature-display-img">
+                <p class="signature-caption">${t('result.signatureCaption')}</p>
+            </div>`;
+        }
+        if (centerSignature) {
+            signaturesHtml += `
+            <div class="signature-box">
+                <p class="signature-role-label">${t('result.centerSignatureLabel')}</p>
+                <img src="${centerSignature}" alt="${t('result.centerSignatureLabel')}" class="signature-display-img">
+                <p class="signature-caption">${t('result.signatureCaption')}</p>
+            </div>`;
+        }
+        signaturesHtml += `</div>`;
+    }
+
+    // كل تقرير بياخد صفحة طباعة كاملة لوحده، بنفس شكل صفحة نتيجة البحث بالظبط
+    // (شعار + شارة + عنوان + كارت النتيجة) — وفاصل صفحة صريح بين كل تقرير والتاني.
+    let html = '';
+    reports.forEach((report, idx) => {
+        const isValid = report.report_status === 'valid';
+        const iconClass = isValid ? 'is-valid' : 'is-invalid';
+        const statusText = isValid ? t('result.statusValid') : t('result.statusNotValid');
+        html += `
+        <div class="print-page">
+            ${printHeader}
+            <h2>${t('result.title')}</h2>
+            <div class="report-card">
+                <div class="result-stamp-wrap">
+                    <div class="result-icon-circle ${iconClass}">
+                        ${isValid ? '✔' : '✕'}
+                        ${isValid ? confettiHtml() : ''}
+                    </div>
+                    <div class="result-status-text ${iconClass}">${statusText}</div>
+                </div>
+                <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+                <p><span class="label">${t('result.labelPassport')}</span> ${escapeHtml(report.passport)}</p>
+                <p><span class="label">${t('result.labelNameAr')}</span> ${escapeHtml(report.name_ar)}</p>
+                <p><span class="label">${t('result.labelNameEn')}</span> ${escapeHtml(report.name_en)}</p>
+                <p><span class="label">${t('result.labelPhone')}</span> ${escapeHtml(report.phone)}</p>
+                <p><span class="label">${t('result.labelDate')}</span> ${escapeHtml(report.report_date)}</p>
+                <div class="report-qr-wrap">
+                    <canvas id="printQr_${idx}"></canvas>
+                    <p class="report-qr-caption">${t('result.qrCaption')}</p>
+                </div>
+                ${signaturesHtml}
+            </div>
+        </div>`;
+    });
+
+    const printArea = document.getElementById('printArea');
+    printArea.innerHTML = html;
+
+    await Promise.all(reports.map((report, idx) => {
+        const canvas = document.getElementById(`printQr_${idx}`);
+        return canvas ? drawQrOnCanvas(canvas, buildReportVerifyLink(report)) : Promise.resolve();
+    }));
+
+    document.body.classList.add('printing-reports');
+    window.print();
+}
+
+// بعد إغلاق نافذة الطباعة (أو الإلغاء)، بنرجع الصفحة لوضعها الطبيعي
+window.addEventListener('afterprint', function(){
+    document.body.classList.remove('printing-reports');
+    const printArea = document.getElementById('printArea');
+    if (printArea) printArea.innerHTML = '';
+});
+
+document.getElementById('printAllBtn').addEventListener('click', function(){
+    // بيطبع نفس الصفوف الظاهرة حاليًا في الجدول (بعد أي فلترة/بحث)، زي تصدير Excel بالظبط
+    const visibleRows = [...document.querySelectorAll('#reportsTable tr')].slice(1)
+        .filter(r => r.style.display !== 'none');
+    const indices = visibleRows.map(r => Array.from(r.parentNode.children).indexOf(r) - 1);
+    const rowsToPrint = indices.map(i => reportsData[i]).filter(Boolean);
+    printReportsList(rowsToPrint);
+});
+
+document.getElementById('printSelectedBtn').addEventListener('click', function(){
+    const indices = Array.from(selectedRowIndexes).sort((a,b) => a - b);
+    if (!indices.length) { showToast(t('bulk.noneSelected'), true); return; }
+    const rowsToPrint = indices.map(i => reportsData[i]).filter(Boolean);
+    printReportsList(rowsToPrint);
+});
 
 // Idle timer مع تحذير قبل الخروج
 let idleTime = 30 * 60;

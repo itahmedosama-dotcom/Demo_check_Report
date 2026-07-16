@@ -129,7 +129,14 @@ ar: {
     'th.user': 'المستخدم',
     'th.addedAt': 'تاريخ ووقت الإضافة',
     'th.verifyLinks': 'روابط التحقق (QR / واتساب)',
+    'th.print': 'طباعة',
+    'th.edit': 'تعديل',
     'th.delete': 'حذف',
+
+    // ---------- طباعة تقرير / تقارير من الداشبورد ----------
+    'action.printTitle': 'طباعة هذا التقرير',
+    'dashboard.printAll': '🖨️ طباعة الكل',
+    'dashboard.printSelected': '🖨️ طباعة المحدد',
 
     // ---------- dashboard.html ----------
     'dashboard.subtitle': 'لوحة إدارة التقارير',
@@ -230,6 +237,7 @@ ar: {
     'csv.subtitle': 'رفع بيانات التقارير',
     'csv.title': 'رفع ملف CSV وإضافة البيانات',
     'csv.downloadTemplate': '📥 تحميل نموذج CSV',
+    'csv.phoneHint': 'ملحوظة: لو فتحت الملف في اكسيل وكتبت رقم موبايل زي 0501234567، اكسيل ممكن يشيل الصفر اللي في الأول تلقائيًا (يبقى 501234567) — النظام بيرجّعه تلقائيًا وقت الرفع لو الرقم موبايل سعودي عادي (يبدأ بـ 5 وطوله 9 أرقام).',
     'csv.uploadBtn': 'رفع الملف',
     'csv.previewTitle': 'معاينة البيانات قبل الإضافة',
     'csv.confirmBtn': '✅ تأكيد إضافة البيانات',
@@ -532,7 +540,14 @@ en: {
     'th.user': 'User',
     'th.addedAt': 'Added At',
     'th.verifyLinks': 'Verify Links (QR / WhatsApp)',
+    'th.print': 'Print',
+    'th.edit': 'Edit',
     'th.delete': 'Delete',
+
+    // ---------- print report(s) from the dashboard ----------
+    'action.printTitle': 'Print this report',
+    'dashboard.printAll': '🖨️ Print All',
+    'dashboard.printSelected': '🖨️ Print Selected',
 
     'dashboard.subtitle': 'Report Management Panel',
     'dashboard.addReportTitle': 'Add New Report',
@@ -631,6 +646,7 @@ en: {
     'csv.subtitle': 'Upload Report Data',
     'csv.title': 'Upload CSV File and Add Data',
     'csv.downloadTemplate': '📥 Download CSV Template',
+    'csv.phoneHint': "Note: if you open the file in Excel and type a mobile number like 0501234567, Excel may strip the leading zero automatically (becoming 501234567) — the system restores it automatically on upload for standard Saudi mobile numbers (starting with 5, 9 digits long).",
     'csv.uploadBtn': 'Upload File',
     'csv.previewTitle': 'Preview Data Before Adding',
     'csv.confirmBtn': '✅ Confirm Add Data',

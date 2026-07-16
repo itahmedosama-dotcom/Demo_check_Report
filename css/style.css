@@ -267,6 +267,17 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
     /* بدون السطر ده، المتصفحات بتشيل الألوان والتدرجات (زي دايرة صالح/غير صالح) وقت الطباعة تلقائيًا */
     *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 }
+/* ---------- طباعة تقرير/تقارير مختارة من الداشبورد كـ "كروت نتائج" ----------
+   #printArea مخفي طول الوقت، وبيتملى ديناميكيًا بكروت زي report_result.html
+   وقت الطباعة. body.printing-reports بتتضاف مؤقتًا وقت الطباعة عشان نخفي كل
+   حاجة تانية في الداشبورد (الفورم، الجدول، التولبار...) ونظهر الكروت بس. */
+#printArea{ display:none; }
+@media print {
+    body.printing-reports .container > *:not(#printArea){ display:none !important; }
+    body.printing-reports #printArea{ display:block !important; }
+    .print-page{ page-break-after: always; break-after: page; }
+    .print-page:last-child{ page-break-after: auto; break-after: auto; }
+}
 .print-logo-header{ display:none; align-items:center; gap:10px; justify-content:center; margin-bottom:14px; flex-wrap:wrap; }
 .print-logo-header img{ height:40px; }
 .electronic-report-badge{
@@ -714,30 +725,14 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
 .qr-action-btn:hover{ background: var(--blue-dark); }
 .wa-action-btn{ background: #25D366; color: #fff; }
 .wa-action-btn:hover{ background: #1ea952; }
+.edit-action-btn{ background: var(--green); color: #fff; }
+.edit-action-btn:hover{ background: var(--green-dark); }
+.delete-action-btn{ background: var(--red); color: #fff; }
+.delete-action-btn:hover{ background: var(--red-dark); }
 .save-edit-btn{ background: var(--green); color: #fff; }
 .save-edit-btn:hover{ background: var(--green-dark); }
 .cancel-edit-btn{ background: #9aa5ac; color: #fff; }
 .cancel-edit-btn:hover{ background: #6f787e; }
-
-/* زرار تعديل صغير بجانب badge حالة التقرير في جدول جميع التقارير */
-.edit-status-btn{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    margin-inline-start: 6px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    font-size: 13px;
-    cursor: pointer;
-    vertical-align: middle;
-    transition: background .2s, transform .1s;
-}
-.edit-status-btn:hover{ background: var(--green-bg); }
-.edit-status-btn:active{ transform: translateY(1px); }
 
 /* الصف اللي بيتعدّل دلوقتي في جدول التقارير */
 tr.editing-row{ background: var(--green-bg); }
