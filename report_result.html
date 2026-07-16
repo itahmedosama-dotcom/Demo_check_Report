@@ -106,6 +106,30 @@ async function run(){
         if (results.length > 1) {
             html += `<p style="color:var(--text-muted);font-size:14px;text-align:center;">${t('result.matchCount', { n: results.length })}</p>`;
         }
+        const deptSignature = (window.__nshSettingsCache && window.__nshSettingsCache.dept_signature) || '';
+        const centerSignature = (window.__nshSettingsCache && window.__nshSettingsCache.center_signature) || '';
+        let signaturesHtml = '';
+        if (deptSignature || centerSignature) {
+            signaturesHtml = `<div class="report-signatures-wrap">`;
+            if (deptSignature) {
+                signaturesHtml += `
+                <div class="signature-box">
+                    <p class="signature-role-label">${t('result.deptSignatureLabel')}</p>
+                    <img src="${deptSignature}" alt="${t('result.deptSignatureLabel')}" class="signature-display-img">
+                    <p class="signature-caption">${t('result.signatureCaption')}</p>
+                </div>`;
+            }
+            if (centerSignature) {
+                signaturesHtml += `
+                <div class="signature-box">
+                    <p class="signature-role-label">${t('result.centerSignatureLabel')}</p>
+                    <img src="${centerSignature}" alt="${t('result.centerSignatureLabel')}" class="signature-display-img">
+                    <p class="signature-caption">${t('result.signatureCaption')}</p>
+                </div>`;
+            }
+            signaturesHtml += `</div>`;
+        }
+
         results.forEach((report, idx) => {
             const isValid = report.report_status === 'valid';
             const iconClass = isValid ? 'is-valid' : 'is-invalid';
@@ -129,6 +153,7 @@ async function run(){
                     <canvas id="qrCard_${idx}"></canvas>
                     <p class="report-qr-caption">${t('result.qrCaption')}</p>
                 </div>
+                ${signaturesHtml}
             </div>`;
         });
         html += `

@@ -144,6 +144,29 @@
 </form>
 </div>
 
+<div class="settings-section" id="reportSignaturesSection">
+<h3 data-i18n="users.signaturesTitle">✍️ توقيعات التقرير الإلكترونية</h3>
+<p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.signaturesDesc">ارفع صورة توقيع القسم وصورة توقيع المركز مرة واحدة من هنا، وهيتم إضافتهم تلقائيًا أسفل كل تقرير نهائي (شاشة العرض والطباعة). سيب أي صورة فاضية لو مش عايز تظهر في التقرير.</p>
+<form id="signaturesForm">
+<label data-i18n="users.deptSignatureLabel">توقيع القسم</label>
+<div class="logo-upload-row">
+    <img id="deptSignaturePreview" src="" alt="dept signature preview" class="logo-preview-img signature-preview-img" style="display:none;">
+    <input type="file" id="dept_signature_file" accept="image/png,image/jpeg,image/webp">
+    <button type="button" id="clearDeptSignatureBtn" class="reject-btn" data-i18n="users.clearDeptSignatureBtn">🗑️ حذف توقيع القسم</button>
+</div>
+
+<label style="margin-top:18px;" data-i18n="users.centerSignatureLabel">توقيع المركز</label>
+<div class="logo-upload-row">
+    <img id="centerSignaturePreview" src="" alt="center signature preview" class="logo-preview-img signature-preview-img" style="display:none;">
+    <input type="file" id="center_signature_file" accept="image/png,image/jpeg,image/webp">
+    <button type="button" id="clearCenterSignatureBtn" class="reject-btn" data-i18n="users.clearCenterSignatureBtn">🗑️ حذف توقيع المركز</button>
+</div>
+<span class="field-hint" data-i18n="users.signatureHint">يفضّل صورة بخلفية بيضاء أو شفافة. بيتم تصغير الصورة تلقائيًا وتخزينها جوه إعدادات الموقع.</span>
+
+<button type="submit" data-i18n="users.saveSignaturesBtn">💾 حفظ التوقيعات</button>
+</form>
+</div>
+
 <div class="settings-section" id="apiConfigSection">
 <h3 data-i18n="users.apiSettingsTitle">🔗 ربط Google Sheet / Apps Script</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.apiSettingsDesc">غيّر رابط ومفتاح Google Apps Script هنا لو عايز تربط نفس المشروع بشيت جديد (شركة تانية مثلاً)، من غير ما تفتح أي كود يدويًا.</p>
@@ -339,6 +362,9 @@ async function loadWaSettings(){
     document.getElementById('color_secondary').value = settingsData.color_secondary || DEFAULT_BRAND_COLORS.secondary;
     document.getElementById('color_accent').value = settingsData.color_accent || DEFAULT_BRAND_COLORS.accent;
     document.getElementById('logoPreview').src = settingsData.logo_data || 'img/logo.jpg';
+
+    setSignaturePreview('deptSignaturePreview', settingsData.dept_signature || '');
+    setSignaturePreview('centerSignaturePreview', settingsData.center_signature || '');
 
     const providersForm = document.getElementById('providersForm');
     if (providersForm) {
@@ -538,6 +564,91 @@ document.getElementById('resetBrandingBtn').addEventListener('click', async func
         setTimeout(() => window.location.reload(), 1200);
     } else {
         showBrandingMsg(t('users.msgSaveErrorGeneric'), true);
+    }
+});
+
+// ============================================================
+// توقيعات التقرير الإلكترونية (توقيع القسم / توقيع المركز)
+// نفس فكرة رفع الشعار بالظبط: بتتصغّر الصورة وتتحفظ base64 جوه شيت Settings،
+// وبعدين report_result.html بيقرأها ويعرضها تلقائيًا أسفل كل تقرير نهائي.
+// ============================================================
+const MAX_SIGNATURE_BASE64_LENGTH = 45000; // نفس هامش الأمان المستخدم مع الشعار
+
+function setSignaturePreview(imgId, dataUrl) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    if (dataUrl) {
+        img.src = dataUrl;
+        img.style.display = '';
+    } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+    }
+}
+
+function wireSignatureFileInput(fileInputId, previewId) {
+    const input = document.getElementById(fileInputId);
+    if (!input) return;
+    input.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => setSignaturePreview(previewId, e.target.result);
+        reader.readAsDataURL(file);
+    });
+}
+wireSignatureFileInput('dept_signature_file', 'deptSignaturePreview');
+wireSignatureFileInput('center_signature_file', 'centerSignaturePreview');
+
+document.getElementById('clearDeptSignatureBtn').addEventListener('click', function () {
+    document.getElementById('dept_signature_file').value = '';
+    setSignaturePreview('deptSignaturePreview', '');
+});
+document.getElementById('clearCenterSignatureBtn').addEventListener('click', function () {
+    document.getElementById('center_signature_file').value = '';
+    setSignaturePreview('centerSignaturePreview', '');
+});
+
+// بترجع '' لو المستخدم دوس زرار "حذف" (preview مخفي)، أو base64 جديد لو اختار
+// ملف جديد، أو تسيب القيمة المخزنة زي ما هي لو محدّش لمس الحقل ده خالص
+async function resolveSignatureValue(fileInputId, previewId, existingValue) {
+    const preview = document.getElementById(previewId);
+    const fileInput = document.getElementById(fileInputId);
+    if (preview.style.display === 'none') return '';
+    if (fileInput.files && fileInput.files[0]) {
+        let data = await resizeAndEncodeImage(fileInput.files[0], 320, 0.78);
+        if (data.length > MAX_SIGNATURE_BASE64_LENGTH) {
+            data = await resizeAndEncodeImage(fileInput.files[0], 180, 0.6);
+        }
+        if (data.length > MAX_SIGNATURE_BASE64_LENGTH) {
+            throw new Error('signature_too_big');
+        }
+        return data;
+    }
+    return existingValue || '';
+}
+
+document.getElementById('signaturesForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    let deptSignature, centerSignature;
+    try {
+        deptSignature = await resolveSignatureValue('dept_signature_file', 'deptSignaturePreview', settingsData.dept_signature);
+        centerSignature = await resolveSignatureValue('center_signature_file', 'centerSignaturePreview', settingsData.center_signature);
+    } catch (err) {
+        console.error('signature encode error:', err);
+        const msgKey = (err && err.message === 'signature_too_big') ? 'users.msgSignatureTooBig' : 'users.msgSignatureReadFailed';
+        showToast(t(msgKey), true);
+        return;
+    }
+
+    settingsData = { ...settingsData, dept_signature: deptSignature, center_signature: centerSignature };
+    const ok = await sheetsSaveSettings(settingsData);
+    if (ok) {
+        document.getElementById('dept_signature_file').value = '';
+        document.getElementById('center_signature_file').value = '';
+        showToast(t('users.msgSignaturesSaved'), false);
+    } else {
+        showToast(t('users.msgSaveErrorGeneric'), true);
     }
 });
 
