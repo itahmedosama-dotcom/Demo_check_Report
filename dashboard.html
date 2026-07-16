@@ -81,6 +81,13 @@
             <option value="" data-i18n="dashboard.all">الكل</option>
         </select>
     </div>
+    <div class="field">
+        <label for="dupFilter" data-i18n="dashboard.dupFilterLabel">التكرار:</label>
+        <select id="dupFilter">
+            <option value="" data-i18n="dashboard.all">الكل</option>
+            <option value="dup" data-i18n="dashboard.dupFilterOnly">⚠️ المكرر فقط</option>
+        </select>
+    </div>
     <div class="actions">
         <button onclick="filterTable()" data-i18n="dashboard.searchBtn">🔍 بحث</button>
         <button class="print-btn" onclick="window.print()" data-i18n="dashboard.printBtn">🖨️ طباعة</button>
@@ -136,6 +143,11 @@
 </div>
 <div class="table-wrap">
 <table id="reportsTable">
+<colgroup>
+<col class="col-check"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
+<col class="col-phone"><col class="col-date"><col class="col-status"><col class="col-user">
+<col class="col-added"><col class="col-actions">
+</colgroup>
 <tr>
 <th data-i18n="th.passport">رقم الباسبور</th>
 <th data-i18n="th.nameAr">الاسم بالعربي</th>
@@ -188,6 +200,9 @@
 const session = requireLogin();
 let reportsData = [];
 let duplicateIndex = -1;
+// نتيجة آخر computeDuplicateFlags() (مصفوفة موازية لـ reportsData)، بيستخدمها
+// filterTable() عشان فلتر "المكرر فقط" يعرف إن الصف ده مكرر ولا لأ
+let currentDupFlags = [];
 // index الصف اللي تحت التعديل دلوقتي (-1 يعني مفيش صف بيتعدّل). للأدمن/مشرف النظام بس.
 let editingIndex = -1;
 
@@ -219,6 +234,63 @@ function showError(msg){
     el.style.display = msg ? 'block' : 'none';
 }
 
+// ============================================================
+// اكتشاف التكرار داخل جميع التقارير المحفوظة فعلاً (نفس معيار التكرار
+// المستخدم في صفحة رفع CSV): صفين بيتحسبوا مكررين لو نفس رقم الجوال
+// وتاريخ التقرير وحالة التقرير، ومع تطابق الاسم (عربي أو إنجليزي) أو
+// رقم الباسبور/الإقامة.
+// ============================================================
+function dupNormStr(s){
+    return String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+function dupSameName(a, b){
+    const an = dupNormStr(a.name_ar), bn = dupNormStr(b.name_ar);
+    if (an !== '' && an === bn) return true;
+    const ae = dupNormStr(a.name_en), be = dupNormStr(b.name_en);
+    if (ae !== '' && ae === be) return true;
+    return false;
+}
+function dupSamePassport(a, b){
+    const pa = dupNormStr(a.passport), pb = dupNormStr(b.passport);
+    return pa !== '' && pa === pb;
+}
+function isDuplicateRecord(a, b){
+    const phoneA = normalizeSaudiPhone(String(a.phone ?? '').trim());
+    const phoneB = normalizeSaudiPhone(String(b.phone ?? '').trim());
+    if (!phoneA || phoneA !== phoneB) return false;
+    if (String(a.report_date ?? '').trim() !== String(b.report_date ?? '').trim()) return false;
+    if (dupNormStr(a.report_status) !== dupNormStr(b.report_status)) return false;
+    return dupSameName(a, b) || dupSamePassport(a, b);
+}
+
+// بيرجع مصفوفة موازية لـ reportsData: null لو الصف مش مكرر، أو
+// {count, matchType} لو مكرر (matchType: 'name' / 'passport' / 'both')
+function computeDuplicateFlags(){
+    return reportsData.map((row, i) => {
+        const matches = reportsData.filter((other, j) => j !== i && isDuplicateRecord(row, other));
+        if (!matches.length) return null;
+        const byName = matches.some(other => dupSameName(row, other));
+        const byPassport = matches.some(other => dupSamePassport(row, other));
+        const matchType = (byName && byPassport) ? 'both' : (byPassport ? 'passport' : 'name');
+        return { count: matches.length, matchType };
+    });
+}
+
+function dupReasonText(flag){
+    const matchLabel = flag.matchType === 'both' ? t('dashboard.dupMatchBoth')
+        : flag.matchType === 'passport' ? t('dashboard.dupMatchPassport')
+        : t('dashboard.dupMatchName');
+    return t('dashboard.dupReason', { n: flag.count, match: matchLabel });
+}
+
+// عند الضغط على أيقونة ⚠️ (مفيد بالذات على الموبايل، لأن title tooltip
+// مش دايمًا سهل الوصول له باللمس زي الماوس)
+function showDuplicateReason(index){
+    const flag = currentDupFlags[index];
+    if (!flag) return;
+    showToast(dupReasonText(flag), true);
+}
+
 function renderTable(){
     const usersList = [...new Set(reportsData.map(r => r.added_by).filter(Boolean))];
     const userFilter = document.getElementById('userFilter');
@@ -229,12 +301,24 @@ function renderTable(){
 
     const table = document.getElementById('reportsTable');
     const checkboxTh = showSelectionColumn ? `<th><input type="checkbox" id="selectAllCheckbox"></th>` : '';
-    let html = `<tr>
+    let html = `<colgroup>
+        <col class="col-check"><col class="col-passport"><col class="col-name-ar"><col class="col-name-en">
+        <col class="col-phone"><col class="col-date"><col class="col-status"><col class="col-user">
+        <col class="col-added"><col class="col-actions">
+        </colgroup>
+        <tr>
         ${checkboxTh}
         <th>${t('th.passport')}</th><th>${t('th.nameAr')}</th><th>${t('th.nameEn')}</th>
         <th>${t('th.phone')}</th><th>${t('th.reportDate')}</th><th>${t('th.status')}</th>
         <th>${t('th.user')}</th><th>${t('th.addedAt')}</th>
         <th>${t('th.actions')}</th></tr>`;
+
+    // ---------- اكتشاف التكرار عبر كل التقارير الموجودة فعلاً في الجدول ----------
+    // (مش بس وقت محاولة إضافة تقرير جديد من الفورم زي duplicateIndex تحت):
+    // صفين بيتحسبوا مكررين لو نفس رقم الجوال + تاريخ التقرير + حالة التقرير،
+    // ومع تطابق الاسم (عربي أو إنجليزي) أو رقم الباسبور/الإقامة.
+    const dupFlags = computeDuplicateFlags();
+    currentDupFlags = dupFlags;
 
     reportsData.forEach((report, index) => {
         const canEditReport = (session.role === 'admin' || session.role === 'supervisor');
@@ -291,14 +375,18 @@ function renderTable(){
 
         // التقرير ده مرفوع من ملف CSV؟ (مش داخل يدوي من الفورم) — بنميّزه بلون مختلف
         const isCsvSource = report.source === 'csv';
-        const combinedRowClass = duplicateIndex === index
+        const dupFlag = dupFlags[index];
+        const combinedRowClass = (duplicateIndex === index || dupFlag)
             ? "class='duplicate-row'"
             : (isCsvSource ? "class='csv-source-row'" : '');
         const sourceMark = isCsvSource ? ` <span title="${t('dashboard.csvSourceTitle')}" style="cursor:help;">📄</span>` : '';
+        const dupMark = dupFlag
+            ? ` <span class="dup-flag-icon" title="${escapeHtml(dupReasonText(dupFlag))}" style="cursor:pointer;" onclick="showDuplicateReason(${index})">⚠️</span>`
+            : '';
 
         html += `<tr ${combinedRowClass}>
             ${checkboxTd}
-            <td>${escapeHtml(report.passport)}${sourceMark}</td>
+            <td>${escapeHtml(report.passport)}${sourceMark}${dupMark}</td>
             <td>${escapeHtml(report.name_ar)}</td>
             <td>${escapeHtml(report.name_en)}</td>
             <td>${escapeHtml(report.phone)}</td>
@@ -503,6 +591,7 @@ function filterTable() {
     const fromDate = document.getElementById('fromDate').value;
     const toDate = document.getElementById('toDate').value;
     const user = document.getElementById('userFilter').value.toLowerCase();
+    const dupOnly = document.getElementById('dupFilter').value === 'dup';
 
     const rows = document.querySelectorAll('#reportsTable tr');
     rows.forEach(function(row, index) {
@@ -511,15 +600,19 @@ function filterTable() {
         const colOffset = showSelectionColumn ? 1 : 0;
         const dateCell = row.cells[4 + colOffset].textContent.trim();
         const userCell = row.cells[6 + colOffset].textContent.trim();
+        // الصف بيطابق reportsData بنفس الترتيب دايمًا (index - 1)، بغض النظر
+        // عن أي فلترة سابقة بتخفي صفوف بس من غير ما تغيّر ترتيبها في الـ DOM
+        const dataIndex = index - 1;
         let show = true;
         if (keyword && !text.includes(keyword)) show = false;
         if (fromDate && dateCell < fromDate) show = false;
         if (toDate && dateCell > toDate) show = false;
         if (user && userCell.toLowerCase() !== user) show = false;
+        if (dupOnly && !currentDupFlags[dataIndex]) show = false;
         row.style.display = show ? '' : 'none';
     });
 }
-['searchInput','fromDate','toDate','userFilter'].forEach(id => {
+['searchInput','fromDate','toDate','userFilter','dupFilter'].forEach(id => {
     document.getElementById(id).addEventListener('input', filterTable);
     document.getElementById(id).addEventListener('change', filterTable);
 });

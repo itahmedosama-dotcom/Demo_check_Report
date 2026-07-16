@@ -251,6 +251,29 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
 .duplicate-row { background-color: #fff3cd !important; }
 .passport-conflict-row { background-color: #ffe2cc !important; }
 .csv-source-row { background-color: #e7f1fb !important; }
+.dup-flag-icon{ margin-inline-start: 2px; }
+
+/* ---------- جدول التقارير (dashboard.html): عرض ثابت لكل عمود ----------
+   المشكلة اللي بتتصلح هنا: قبل كده الجدول كان table-layout:auto، يعني عرض
+   كل عمود بيتحسب تلقائيًا حسب أعرض محتوى فيه. لما تضغط "تعديل" وصف يتحول
+   لحقول input/select (اللي كان ليها min-width:90px)، عرض الأعمدة كله كان
+   بيتغيّر فجأة (لأن المتصفح بيعيد حساب أعرض عمود لكل الجدول مش بس الصف ده)،
+   فالجدول كله كان "بيتلغبط"/يهتز وقت الدخول والخروج من وضع التعديل.
+   الحل: عرض كل عمود بيبقى ثابت دايمًا (مش بيتغيّر بين وضع العرض والتعديل)،
+   والتمرير الأفقي (.table-wrap{overflow-x:auto}) بيتكفّل بأي محتوى أطول. */
+#reportsTable{ table-layout: fixed; min-width: 1080px; }
+#reportsTable col.col-check{ width: 34px; }
+#reportsTable col.col-passport{ width: 120px; }
+#reportsTable col.col-name-ar{ width: 130px; }
+#reportsTable col.col-name-en{ width: 130px; }
+#reportsTable col.col-phone{ width: 115px; }
+#reportsTable col.col-date{ width: 105px; }
+#reportsTable col.col-status{ width: 90px; }
+#reportsTable col.col-user{ width: 95px; }
+#reportsTable col.col-added{ width: 135px; }
+#reportsTable col.col-actions{ width: 160px; }
+#reportsTable td, #reportsTable th{ overflow-wrap: break-word; word-break: break-word; }
+#reportsTable tr.editing-row td{ vertical-align: middle; }
 #timer { position: fixed; bottom: 14px; right: 14px; font-weight: 700; background: #fff; color: var(--text); padding: 8px 14px; border-radius: 30px; z-index: 999; box-shadow: var(--shadow); font-size: 13px; border: 1px solid var(--border); }
 /* ---------- Print stylesheet ----------
    بيشتغل مع أي نوع محتوى (جداول، كروت نتائج، داشبورد تحليلي) —
@@ -265,6 +288,7 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
     .report-card{ box-shadow: none !important; break-inside: avoid; }
     .kpi-card, .chart-card{ box-shadow: none !important; break-inside: avoid; }
     table{ min-width: 0 !important; }
+    #reportsTable{ table-layout: auto !important; }
     .print-logo-header{ display: flex !important; }
     /* بدون السطر ده، المتصفحات بتشيل الألوان والتدرجات (زي دايرة صالح/غير صالح) وقت الطباعة تلقائيًا */
     *{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
@@ -743,7 +767,8 @@ button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
 tr.editing-row{ background: var(--green-bg); }
 tr.editing-row td input, tr.editing-row td select{
     width: 100%;
-    min-width: 90px;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 6px 8px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);

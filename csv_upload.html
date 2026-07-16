@@ -341,11 +341,18 @@ document.getElementById('confirmUploadBtn').addEventListener('click', async func
     // نضيف مين رفع الملف (added_by) ومتى فعليًا اتحفظ (added_at)، وكمان علامة
     // source:'csv' عشان داشبورد التقارير يقدر يميّزها بلون مختلف عن الإدخال
     // اليدوي — بالظبط زي البيانات اللي بتتضاف يدويًا من فورم الداشبورد.
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    //
+    // تاريخ ووقت الإضافة (added_at) لتقارير الـ CSV تحديدًا بيتكون من جزئين
+    // مختلفين مقصودين: جزء التاريخ بياخد تاريخ التقرير نفسه من الملف (عمود
+    // report_date بتاع كل سطر)، وجزء الوقت بياخد وقت رفع الملف فعليًا (نفس
+    // اللحظة لكل السطور اللي في نفس عملية الرفع دي) — مش وقت/تاريخ اليوم بالكامل.
+    const uploadMoment = new Date().toISOString();
+    const uploadTimePart = uploadMoment.slice(11, 19); // HH:MM:SS
+    const uploadDatePart = uploadMoment.slice(0, 10); // احتياطي لو السطر من غير تاريخ تقرير
     const stampedCsvData = csvData.map(row => ({
         ...row,
         added_by: session.username,
-        added_at: now,
+        added_at: (String(row.report_date || '').trim() || uploadDatePart) + ' ' + uploadTimePart,
         source: 'csv'
     }));
 
