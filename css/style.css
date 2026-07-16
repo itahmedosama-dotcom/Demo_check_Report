@@ -15,6 +15,14 @@
     --red: #e2483d;
     --red-dark: #c73528;
 
+    /* أزرار ثانوية/محايدة (رجوع، طباعة، تصدير، إعدادات...) — لون واحد غير مرتبط
+       بهوية الشركة (الأخضر/الأزرق/البرتقالي)، عشان يفضل واضح إنه فعل ثانوي
+       مهما اتغيّرت ألوان الهوية من صفحة الإعدادات */
+    --neutral-bg: #eef1f4;
+    --neutral-bg-hover: #e2e7ec;
+    --neutral-text: #3b4652;
+    --neutral-border: #d7dee4;
+
     --text: #22303c;
     --text-muted: #667380;
     --bg: #f3f7f5;
@@ -174,17 +182,66 @@ tbody tr:nth-child(even){ background: #fbfdfb; }
 .badge.valid, .valid { color: var(--green-dark); background: var(--green-bg); }
 .badge.not-valid, .not-valid { color: var(--red-dark); background: #fdecea; }
 
-.print-btn, .excel-btn, .check-btn, .settings-btn, .confirm-btn, .download-btn, .export-btn, .search-again, .analytics-btn {
+/* ---------- نظام موحّد لألوان الأزرار في كل الموقع ----------
+   3 مستويات بس، بمعنى ثابت في كل صفحة:
+   • أساسي (أخضر/لون الهوية)  → أي فعل إيجابي رئيسي: حفظ، تأكيد، موافقة، تحقق (زي زرار <button> العادي)
+   • ثانوي (رمادي فاتح محايد) → أي فعل تنقّلي/مساعد: رجوع، طباعة، تصدير، تعديل، فتح صفحة تانية
+   • خطر (أحمر)               → أي فعل حذف/رفض/خروج، مفيش رجوع فيه بسهولة
+   ملحوظة: الأزرار الثانوية مش مرتبطة بألوان هوية الشركة القابلة للتخصيص عمدًا،
+   عشان تفضل واضحة كـ"فعل ثانوي" مهما كانت ألوان الشركة. */
+.print-btn, .excel-btn, .check-btn, .settings-btn, .confirm-btn, .download-btn,
+.export-btn, .search-again, .analytics-btn, .back-btn, .lang-switch-btn, .logout-btn,
+.add-btn, .save-btn, .edit-btn, .delete-btn, .status-btn, .approve-btn, .reject-btn {
     color: white;
 }
-.print-btn { background-color: var(--blue); } .print-btn:hover { background-color: var(--blue-dark); }
-.excel-btn, .export-btn { background-color: #6c7a72; } .excel-btn:hover, .export-btn:hover { background-color: #56625b; }
-.check-btn { background-color: var(--green); } .check-btn:hover { background-color: var(--green-dark); }
-.settings-btn { background-color: #7a5cb0; } .settings-btn:hover { background-color: #63478f; }
-.confirm-btn { background-color: var(--orange); } .confirm-btn:hover { background-color: var(--orange-dark); }
-.download-btn { background-color: var(--blue); }
-.search-again { background-color: var(--blue); }
-.analytics-btn{ background-color: #2e7d9b; } .analytics-btn:hover{ background-color: #235f78; }
+
+/* --- أساسي: أخضر (لون الهوية) --- */
+.check-btn, .confirm-btn, .add-btn, .save-btn, .approve-btn, .status-btn {
+    background-color: var(--green);
+}
+.check-btn:hover, .confirm-btn:hover, .add-btn:hover, .save-btn:hover,
+.approve-btn:hover, .status-btn:hover {
+    background-color: var(--green-dark);
+}
+
+/* --- ثانوي: رمادي محايد، مش مرتبط بهوية الشركة --- */
+.print-btn, .excel-btn, .export-btn, .settings-btn, .download-btn,
+.search-again, .analytics-btn, .back-btn, .lang-switch-btn, .edit-btn {
+    background-color: var(--neutral-bg);
+    color: var(--neutral-text);
+    border: 1.5px solid var(--neutral-border);
+}
+.print-btn:hover, .excel-btn:hover, .export-btn:hover, .settings-btn:hover,
+.download-btn:hover, .search-again:hover, .analytics-btn:hover, .back-btn:hover,
+.lang-switch-btn:hover, .edit-btn:hover {
+    background-color: var(--neutral-bg-hover);
+}
+
+/* --- خطر: أحمر --- */
+.logout-btn, .delete-btn, .reject-btn, .status-btn.inactive {
+    background-color: var(--red);
+}
+.logout-btn:hover, .delete-btn:hover, .reject-btn:hover, .status-btn.inactive:hover {
+    background-color: var(--red-dark);
+}
+
+/* أزرار محايدة بحواف بس (بدون خلفية مليانة) — لأي فعل ثانوي إضافي في الصفحة */
+.btn-ghost{
+    background: #fff; color: var(--neutral-text); border: 1.5px solid var(--neutral-border);
+}
+.btn-ghost:hover{ background: var(--neutral-bg); }
+
+/* حلقة تركيز واضحة لأي زرار عند التنقل بالكيبورد (Tab) — مهم لسهولة الاستخدام */
+button:focus-visible, .btn:focus-visible, a.btn:focus-visible,
+.print-btn:focus-visible, .excel-btn:focus-visible, .check-btn:focus-visible,
+.settings-btn:focus-visible, .confirm-btn:focus-visible, .download-btn:focus-visible,
+.export-btn:focus-visible, .search-again:focus-visible, .analytics-btn:focus-visible,
+.logout-btn:focus-visible, .back-btn:focus-visible, .lang-switch-btn:focus-visible,
+.add-btn:focus-visible, .save-btn:focus-visible, .edit-btn:focus-visible,
+.delete-btn:focus-visible, .status-btn:focus-visible, .approve-btn:focus-visible,
+.reject-btn:focus-visible {
+    outline: 2.5px solid var(--green); outline-offset: 2px;
+}
 
 .toolbar{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px; padding: 14px; background: var(--bg); border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .toolbar label{ font-weight: 700; font-size: 13.5px; color: var(--text-muted); }
@@ -232,17 +289,11 @@ tbody tr:nth-child(even){ background: #fbfdfb; }
 }
 .signature-caption{ font-size: 11.5px; font-weight: 700; color: var(--green-dark); margin: 0; }
 
-/* ---------- users page ---------- */
-.add-btn { background: var(--green); color: white; }
-.save-btn { background: var(--blue); color: white; min-height: 36px; padding: 8px 16px; font-size: 13px; }
-.edit-btn { background: var(--orange); color: #fff; min-height: 36px; padding: 8px 16px; font-size: 13px; }
-.status-btn { background: var(--green); color: white; min-height: 34px; padding: 6px 14px; border-radius: 20px; font-size: 12.5px; }
-.status-btn.inactive { background: var(--red); }
-.delete-btn { background: var(--red); color: white; min-height: 36px; padding: 8px 16px; font-size: 13px; }
-.approve-btn { background: var(--green); color: white; min-height: 36px; padding: 8px 16px; font-size: 13px; }
-.approve-btn:hover{ background: var(--green-dark); }
-.reject-btn { background: var(--red); color: white; min-height: 36px; padding: 8px 16px; font-size: 13px; }
-.reject-btn:hover{ background: var(--red-dark); }
+/* ---------- users page ----------
+   الألوان بقت متحكم فيها من النظام الموحّد فوق (أساسي/ثانوي/خطر)؛
+   هنا بس أحجام مصغّرة مناسبة لأزرار الجدول (تعديل/حذف/موافقة...) */
+.save-btn, .edit-btn, .delete-btn, .approve-btn, .reject-btn { min-height: 36px; padding: 8px 16px; font-size: 13px; }
+.status-btn { min-height: 34px; padding: 6px 14px; border-radius: 20px; font-size: 12.5px; }
 .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(20,30,25,0.55); }
 .modal-content { background: white; margin: 15% auto; padding: 24px; border-radius: var(--radius); width: 320px; text-align: center; box-shadow: var(--shadow-hover); }
 .modal-content button { margin: 5px; width: 110px; }
@@ -404,6 +455,23 @@ tbody tr:nth-child(even){ background: #fbfdfb; }
     margin-top: 10px; font-weight: 700; cursor: pointer;
 }
 .checkbox-row input[type="checkbox"]{ width: 17px; height: 17px; margin-top: 0; cursor: pointer; }
+
+/* ---------- Settings page tabs (users.html) ----------
+   شريط تابات أفقي قابل للتمرير على الموبايل، بدل ما كل أقسام الإعدادات
+   تكون في سكرول رأسي واحد طويل */
+.settings-tabs{
+    display: flex; gap: 6px; margin-top: 20px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px; border-bottom: 1.5px solid var(--border);
+}
+.settings-tab-btn{
+    flex: 0 0 auto; background: transparent; color: var(--text-muted); border: none;
+    border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 16px;
+    font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; margin-top: 0;
+}
+.settings-tab-btn:hover{ color: var(--green-dark); background: var(--green-bg); }
+.settings-tab-btn.active{ color: var(--green-dark); border-bottom-color: var(--green); }
+.tab-panel{ margin-top: 8px; }
+.tab-panel .settings-section:first-child{ margin-top: 18px; padding-top: 0; border-top: none; }
 
 /* ---------- Company branding section (users.html) ---------- */
 .logo-upload-row{

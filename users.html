@@ -30,6 +30,15 @@
 <div class="container">
 <h2 data-i18n="users.title">إدارة المستخدمين</h2>
 
+<div class="settings-tabs" role="tablist">
+    <button type="button" class="settings-tab-btn active" data-tab="users" data-i18n="users.tabUsersLabel">👤 المستخدمون</button>
+    <button type="button" class="settings-tab-btn" data-tab="branding" data-i18n="users.tabBrandingLabel">🎨 الهوية والتوقيعات</button>
+    <button type="button" class="settings-tab-btn" data-tab="contact" data-i18n="users.tabContactLabel">📞 التواصل</button>
+    <button type="button" class="settings-tab-btn" data-tab="integrations" data-i18n="users.tabIntegrationsLabel">🔌 الربط والتكامل</button>
+    <button type="button" class="settings-tab-btn" data-tab="backup" data-i18n="users.tabBackupLabel">💾 النسخة الاحتياطية</button>
+</div>
+
+<div class="tab-panel" id="tabPanel-users">
 <h3 data-i18n="users.pendingTitle">📥 طلبات تسجيل الموظفين الجدد</h3>
 <div id="pendingSection">
     <p class="pending-empty" data-i18n="users.loadingRequests">... جاري تحميل الطلبات</p>
@@ -78,7 +87,9 @@
 </tr>
 </table>
 </div>
+</div>
 
+<div class="tab-panel" id="tabPanel-contact" style="display:none;">
 <div class="settings-section">
 <h3 data-i18n="users.waSettingsTitle">إعدادات زر واتساب</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.waSettingsDesc">حط رقم واتساب التواصل هنا عشان يظهر زرار "تحدث معنا" في كل صفحات الموقع. سيبه فاضي لو عايز تخفي الزرار مؤقتًا.</p>
@@ -106,7 +117,9 @@
 <button type="submit" data-i18n="users.saveFooterBtn">💾 حفظ نص حقوق الملكية</button>
 </form>
 </div>
+</div>
 
+<div class="tab-panel" id="tabPanel-branding" style="display:none;">
 <div class="settings-section" id="companyBrandingSection">
 <h3 data-i18n="users.brandingTitle">🎨 هوية الشركة (الشعار / الاسم / الألوان)</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.brandingDesc">استخدم القسم ده عشان تخصّص شكل الموقع باسم وشعار وألوان أي شركة تانية بتستخدم نفس المشروع، من غير أي تعديل في الكود. سيب اسم الشركة فاضي أو رجّع الألوان الافتراضية لو عايز ترجع للهوية الأصلية.</p>
@@ -166,7 +179,9 @@
 <button type="submit" data-i18n="users.saveSignaturesBtn">💾 حفظ التوقيعات</button>
 </form>
 </div>
+</div>
 
+<div class="tab-panel" id="tabPanel-integrations" style="display:none;">
 <div class="settings-section" id="apiConfigSection">
 <h3 data-i18n="users.apiSettingsTitle">🔗 ربط Google Sheet / Apps Script</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="users.apiSettingsDesc">غيّر رابط ومفتاح Google Apps Script هنا لو عايز تربط نفس المشروع بشيت جديد (شركة تانية مثلاً)، من غير ما تفتح أي كود يدويًا.</p>
@@ -220,12 +235,15 @@
 </div>
 </form>
 </div>
+</div>
 
+<div class="tab-panel" id="tabPanel-backup" style="display:none;">
 <div class="settings-section" id="backupSection">
 <h3 data-i18n="backup.title">💾 نسخة احتياطية كاملة</h3>
 <p style="color:var(--text-muted); font-size:14px; margin-top:-6px;" data-i18n="backup.desc">يحمّل ملف Excel واحد فيه كل بيانات النظام (التقارير، المستخدمون، الإعدادات، طلبات التسجيل) كنسخة احتياطية على جهازك.</p>
 <div class="branding-actions">
 <button type="button" id="downloadBackupBtn" data-i18n="backup.btn">⬇️ تحميل نسخة احتياطية (Excel)</button>
+</div>
 </div>
 </div>
 </div>
@@ -271,7 +289,37 @@ if (session.role !== 'admin') {
     if (providersSection) providersSection.style.display = 'none';
     const backupSection = document.getElementById('backupSection');
     if (backupSection) backupSection.style.display = 'none';
+    // التابين دول بيبقوا فاضيين تمامًا لغير الأدمن (كل الأقسام اللي جواهم متخفية)،
+    // فبنخفي زرار التاب نفسه بدل ما يفتح على صفحة فاضية
+    document.querySelectorAll('.settings-tab-btn[data-tab="integrations"], .settings-tab-btn[data-tab="backup"]')
+        .forEach(btn => btn.style.display = 'none');
 }
+
+// ============================================================
+// تبديل تابات صفحة الإعدادات (المستخدمون / الهوية والتوقيعات / التواصل /
+// الربط والتكامل / النسخة الاحتياطية). بيفتكر آخر تاب فتحه المستخدم على
+// نفس الجهاز (localStorage) عشان لو رجع تاني يفضل واقف في نفس المكان.
+// ============================================================
+function switchSettingsTab(tabKey) {
+    document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.style.display = (panel.id === 'tabPanel-' + tabKey) ? '' : 'none';
+    });
+    document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabKey);
+    });
+    try { localStorage.setItem('nsh_settings_tab', tabKey); } catch (e) { /* ignore */ }
+}
+
+document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchSettingsTab(btn.dataset.tab));
+});
+
+(function restoreLastSettingsTab() {
+    const saved = localStorage.getItem('nsh_settings_tab');
+    const btn = saved && document.querySelector(`.settings-tab-btn[data-tab="${saved}"]`);
+    // لو التاب المحفوظ اتخفى (مثلاً كان "backup" وحساب المستخدم دلوقتي مش أدمن)، نفضل في التاب الافتراضي
+    if (btn && btn.style.display !== 'none') switchSettingsTab(saved);
+})();
 
 function renderPending(){
     const section = document.getElementById('pendingSection');
