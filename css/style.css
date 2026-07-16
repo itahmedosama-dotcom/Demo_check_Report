@@ -445,8 +445,14 @@ tbody tr:nth-child(even){ background: #fbfdfb; }
     }
     .toolbar{ flex-direction: column; align-items: stretch; }
     .toolbar > *{ width: 100%; }
-    .button-group{ flex-direction: column; }
-    .button-group button, .button-group a{ width: 100%; justify-content:center; }
+    .button-group{ flex-direction: row; flex-wrap: wrap; gap: 8px; }
+    .button-group button, .button-group a{
+        flex: 1 1 0; width: auto; min-width: 0; justify-content:center;
+        padding: 8px 6px; font-size: 12px; min-height: 36px; white-space: nowrap;
+    }
+    .report-signatures-wrap{ gap: 14px; flex-wrap: nowrap; }
+    .signature-box{ min-width: 0; flex: 1 1 0; max-width: 150px; }
+    .signature-display-img{ max-width: 100%; }
 }
 
 /* ---------- Site footer (copyright + contact) ---------- */

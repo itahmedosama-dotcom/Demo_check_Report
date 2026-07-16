@@ -72,7 +72,10 @@ async function run(){
     const report_date = (params.get('report_date') || '').trim();
     const phone = (params.get('phone') || '').trim();
 
-    const data = await sheetsGetData();
+    // بنجيب بيانات التقارير وإعدادات الشركة (شعار/توقيعات) مع بعض، من غير ما نستنى
+    // window.__nshSettingsCache اللي بيتملى من branding.js بشكل منفصل وممكن يوصل
+    // بعد ما الصفحة تتبني، وده كان بيخلي التوقيعات مايظهرش أحيانًا (حالة سباق/race condition)
+    const [data, settings] = await Promise.all([sheetsGetData(), sheetsGetSettings()]);
 
     // رقم الباسبور/الإقامة هو الأساس الوحيد المطلوب للبحث.
     // التاريخ والتليفون بيستخدموا بس لو المستخدم دخّلهم، لتضييق النتائج.
@@ -97,7 +100,7 @@ async function run(){
     const currentOrgName = window.__nshCompanyName || t('common.orgName');
     const printHeader = `
         <div class="print-logo-header">
-            <img src="${(window.__nshSettingsCache && window.__nshSettingsCache.logo_data) || 'img/logo.jpg'}" alt="${escapeHtml(currentOrgName)}" style="height:40px;">
+            <img src="${settings.logo_data || 'img/logo.jpg'}" alt="${escapeHtml(currentOrgName)}" style="height:40px;">
             <strong>${escapeHtml(currentOrgName)}</strong>
             <span class="electronic-report-badge">${t('result.electronicBadge')}</span>
         </div>`;
@@ -106,8 +109,8 @@ async function run(){
         if (results.length > 1) {
             html += `<p style="color:var(--text-muted);font-size:14px;text-align:center;">${t('result.matchCount', { n: results.length })}</p>`;
         }
-        const deptSignature = (window.__nshSettingsCache && window.__nshSettingsCache.dept_signature) || '';
-        const centerSignature = (window.__nshSettingsCache && window.__nshSettingsCache.center_signature) || '';
+        const deptSignature = settings.dept_signature || '';
+        const centerSignature = settings.center_signature || '';
         let signaturesHtml = '';
         if (deptSignature || centerSignature) {
             signaturesHtml = `<div class="report-signatures-wrap">`;
